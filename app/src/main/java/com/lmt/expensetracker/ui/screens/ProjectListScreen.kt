@@ -10,11 +10,13 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lmt.expensetracker.ui.components.ProjectCard
+import com.lmt.expensetracker.ui.theme.CustomColors
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 @Composable
@@ -25,7 +27,7 @@ fun ProjectListScreen(
     onNavigateToProjectDetail: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val listState by viewModel.listState.collectAsState()
+    val listState by viewModel.listState.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier

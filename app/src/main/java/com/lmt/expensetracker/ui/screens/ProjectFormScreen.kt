@@ -25,8 +25,10 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
+import com.lmt.expensetracker.ui.theme.CustomColors
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 @Composable
@@ -35,9 +37,9 @@ fun ProjectFormScreen(
     onNavigateBack: () -> Unit,
     onSaveSuccess: () -> Unit
 ) {
-    val formState by viewModel.formState.collectAsState()
-    val showConfirmDialog by viewModel.showConfirmDialog.collectAsState()
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
+    val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
     var statusExpanded by remember { mutableStateOf(false) }
 

@@ -40,6 +40,12 @@ data class ProjectListState(
     val filterStatus: String? = null
 )
 
+data class StatusCounts(
+    val active: Int = 0,
+    val completed: Int = 0,
+    val onHold: Int = 0
+)
+
 class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() {
 
     private val _formState = MutableStateFlow(ProjectFormState())
@@ -47,6 +53,9 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     private val _listState = MutableStateFlow(ProjectListState())
     val listState: StateFlow<ProjectListState> = _listState.asStateFlow()
+
+    private val _statusCounts = MutableStateFlow(StatusCounts())
+    val statusCounts: StateFlow<StatusCounts> = _statusCounts.asStateFlow()
 
     private val _showConfirmDialog = MutableStateFlow(false)
     val showConfirmDialog: StateFlow<Boolean> = _showConfirmDialog.asStateFlow()
@@ -65,6 +74,13 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
             _listState.value = _listState.value.copy(isLoading = true)
             try {
                 repository.getAllProjectsWithSpent().collect { projects ->
+                    // Compute dynamic status counts from full unfiltered list
+                    _statusCounts.value = StatusCounts(
+                        active = projects.count { it.project.status == "Active" },
+                        completed = projects.count { it.project.status == "Completed" },
+                        onHold = projects.count { it.project.status == "On Hold" }
+                    )
+
                     val filtered = if (_listState.value.filterStatus != null) {
                         projects.filter { it.project.status == _listState.value.filterStatus }
                     } else {
