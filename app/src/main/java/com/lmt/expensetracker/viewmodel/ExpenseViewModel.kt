@@ -1,0 +1,376 @@
+package com.lmt.expensetracker.viewmodel
+
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
+import com.lmt.expensetracker.data.entities.ExpenseEntity
+import com.lmt.expensetracker.data.repository.ExpenseRepository
+import com.lmt.expensetracker.utils.DateUtils
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.launch
+import java.util.UUID
+
+data class ExpenseFormState(
+    val expenseId: String = UUID.randomUUID().toString(),
+    val projectId: String = "",
+    val date: String = "",
+    val amount: String = "",
+    val currency: String = "USD",
+    val type: String = "Travel",
+    val paymentMethod: String = "Cash",
+    val claimant: String = "",
+    val status: String = "Pending",
+    val description: String = "",
+    val location: String = "",
+    val isEditMode: Boolean = false,
+    // Validation errors
+    val dateError: String? = null,
+    val amountError: String? = null,
+    val claimantError: String? = null,
+    val typeError: String? = null,
+    val paymentMethodError: String? = null
+)
+
+data class ExpenseListState(
+    val expenses: List<ExpenseEntity> = emptyList(),
+    val isLoading: Boolean = false,
+    val error: String? = null,
+    val searchQuery: String = "",
+    val filterStatus: String? = null,
+    val filterType: String? = null,
+    val selectedProjectId: String? = null,
+    val totalAmount: Double = 0.0
+)
+
+class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() {
+
+    private val _formState = MutableStateFlow(ExpenseFormState())
+    val formState: StateFlow<ExpenseFormState> = _formState.asStateFlow()
+
+    private val _listState = MutableStateFlow(ExpenseListState())
+    val listState: StateFlow<ExpenseListState> = _listState.asStateFlow()
+
+    private val _showConfirmDialog = MutableStateFlow(false)
+    val showConfirmDialog: StateFlow<Boolean> = _showConfirmDialog.asStateFlow()
+
+    private val _saveSuccess = MutableStateFlow(false)
+    val saveSuccess: StateFlow<Boolean> = _saveSuccess.asStateFlow()
+
+    // Dropdowns data
+    val expenseTypes = listOf(
+        "Travel",
+        "Equipment",
+        "Materials",
+        "Services",
+        "Software/Licenses",
+        "Labour costs",
+        "Utilities",
+        "Miscellaneous"
+    )
+
+    val paymentMethods = listOf(
+        "Cash",
+        "Credit Card",
+        "Bank Transfer",
+        "Cheque"
+    )
+
+    val statuses = listOf(
+        "Pending",
+        "Paid",
+        "Reimbursed"
+    )
+
+    init {
+        loadExpenses()
+    }
+
+    // ==================== EXPENSE LIST OPERATIONS ====================
+
+    fun loadExpenses(projectId: String? = null) {
+        viewModelScope.launch {
+            _listState.value = _listState.value.copy(isLoading = true)
+            try {
+                val flow = if (projectId != null) {
+                    repository.getExpensesByProjectId(projectId)
+                } else {
+                    repository.getAllExpenses()
+                }
+
+                flow.collect { expenses ->
+                    var filtered = expenses
+
+                    // Apply status filter
+                    if (_listState.value.filterStatus != null) {
+                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
+                    }
+
+                    // Apply type filter
+                    if (_listState.value.filterType != null) {
+                        filtered = filtered.filter { it.type == _listState.value.filterType }
+                    }
+
+                    // Apply search query
+                    if (_listState.value.searchQuery.isNotEmpty()) {
+                        filtered = filtered.filter {
+                            it.description.contains(_listState.value.searchQuery, ignoreCase = true) ||
+                                    it.claimant.contains(_listState.value.searchQuery, ignoreCase = true) ||
+                                    it.location.contains(_listState.value.searchQuery, ignoreCase = true)
+                        }
+                    }
+
+                    val total = filtered.sumOf { it.amount }
+
+                    _listState.value = _listState.value.copy(
+                        expenses = filtered,
+                        isLoading = false,
+                        error = null,
+                        selectedProjectId = projectId,
+                        totalAmount = total
+                    )
+                }
+            } catch (e: Exception) {
+                _listState.value = _listState.value.copy(
+                    isLoading = false,
+                    error = e.message ?: "Unknown error"
+                )
+            }
+        }
+    }
+
+    fun searchExpenses(query: String) {
+        _listState.value = _listState.value.copy(searchQuery = query)
+        viewModelScope.launch {
+            try {
+                repository.searchExpenses(query).collect { expenses ->
+                    var filtered = expenses
+
+                    // Apply filters
+                    if (_listState.value.filterStatus != null) {
+                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
+                    }
+
+                    if (_listState.value.filterType != null) {
+                        filtered = filtered.filter { it.type == _listState.value.filterType }
+                    }
+
+                    if (_listState.value.selectedProjectId != null) {
+                        filtered = filtered.filter { it.projectId == _listState.value.selectedProjectId }
+                    }
+
+                    val total = filtered.sumOf { it.amount }
+
+                    _listState.value = _listState.value.copy(
+                        expenses = filtered,
+                        totalAmount = total,
+                        error = null
+                    )
+                }
+            } catch (e: Exception) {
+                _listState.value = _listState.value.copy(
+                    error = e.message ?: "Search failed"
+                )
+            }
+        }
+    }
+
+    fun filterByStatus(status: String?) {
+        _listState.value = _listState.value.copy(filterStatus = status)
+        loadExpenses(_listState.value.selectedProjectId)
+    }
+
+    fun filterByType(type: String?) {
+        _listState.value = _listState.value.copy(filterType = type)
+        loadExpenses(_listState.value.selectedProjectId)
+    }
+
+    fun deleteExpense(expense: ExpenseEntity) {
+        viewModelScope.launch {
+            try {
+                repository.deleteExpense(expense)
+                loadExpenses(_listState.value.selectedProjectId)
+            } catch (e: Exception) {
+                _listState.value = _listState.value.copy(
+                    error = "Failed to delete expense"
+                )
+            }
+        }
+    }
+
+    // ==================== EXPENSE FORM OPERATIONS ====================
+
+    fun onDateChange(date: String) {
+        _formState.value = _formState.value.copy(
+            date = date,
+            dateError = DateUtils.getDateValidationError(date)
+        )
+    }
+
+    fun onAmountChange(amount: String) {
+        _formState.value = _formState.value.copy(
+            amount = amount,
+            amountError = when {
+                amount.isBlank() -> "Amount is required"
+                amount.toDoubleOrNull() == null -> "Amount must be a valid number"
+                amount.toDouble() <= 0 -> "Amount must be greater than 0"
+                else -> null
+            }
+        )
+    }
+
+    fun onCurrencyChange(currency: String) {
+        _formState.value = _formState.value.copy(currency = currency)
+    }
+
+    fun onTypeChange(type: String) {
+        _formState.value = _formState.value.copy(
+            type = type,
+            typeError = null
+        )
+    }
+
+    fun onPaymentMethodChange(method: String) {
+        _formState.value = _formState.value.copy(
+            paymentMethod = method,
+            paymentMethodError = null
+        )
+    }
+
+    fun onClaimantChange(claimant: String) {
+        _formState.value = _formState.value.copy(
+            claimant = claimant,
+            claimantError = if (claimant.isBlank()) "Claimant name is required" else null
+        )
+    }
+
+    fun onStatusChange(status: String) {
+        _formState.value = _formState.value.copy(status = status)
+    }
+
+    fun onDescriptionChange(description: String) {
+        _formState.value = _formState.value.copy(description = description)
+    }
+
+    fun onLocationChange(location: String) {
+        _formState.value = _formState.value.copy(location = location)
+    }
+
+    // Validate form
+    private fun validateForm(): Boolean {
+        val state = _formState.value
+        var isValid = true
+
+        val dateError = DateUtils.getDateValidationError(state.date)
+        if (dateError != null) {
+            _formState.value = _formState.value.copy(dateError = dateError)
+            isValid = false
+        }
+
+        if (state.amount.isBlank() || state.amount.toDoubleOrNull() == null || state.amount.toDouble() <= 0) {
+            _formState.value = _formState.value.copy(amountError = "Amount must be a valid positive number")
+            isValid = false
+        }
+
+        if (state.claimant.isBlank()) {
+            _formState.value = _formState.value.copy(claimantError = "Claimant name is required")
+            isValid = false
+        }
+
+        return isValid
+    }
+
+    fun requestConfirmation() {
+        if (validateForm()) {
+            _showConfirmDialog.value = true
+        }
+    }
+
+    fun saveExpense() {
+        val state = _formState.value
+        viewModelScope.launch {
+            try {
+                val expense = ExpenseEntity(
+                    expenseId = state.expenseId,
+                    projectId = state.projectId,
+                    date = state.date,
+                    amount = state.amount.toDouble(),
+                    currency = state.currency,
+                    type = state.type,
+                    paymentMethod = state.paymentMethod,
+                    claimant = state.claimant,
+                    status = state.status,
+                    description = state.description,
+                    location = state.location
+                )
+                if (state.isEditMode) {
+                    repository.updateExpense(expense)
+                } else {
+                    repository.insertExpense(expense)
+                }
+                _showConfirmDialog.value = false
+                _saveSuccess.value = true
+                resetForm()
+                loadExpenses(_listState.value.selectedProjectId)
+            } catch (e: Exception) {
+                _listState.value = _listState.value.copy(
+                    error = "Failed to save expense: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun setEditMode(isEdit: Boolean) {
+        _formState.value = _formState.value.copy(isEditMode = isEdit)
+    }
+
+    fun loadExpenseForEdit(expenseId: String) {
+        viewModelScope.launch {
+            try {
+                repository.getExpenseById(expenseId).collect { expense ->
+                    if (expense != null) {
+                        _formState.value = ExpenseFormState(
+                            expenseId = expense.expenseId,
+                            projectId = expense.projectId,
+                            date = expense.date,
+                            amount = expense.amount.toString(),
+                            currency = expense.currency,
+                            type = expense.type,
+                            paymentMethod = expense.paymentMethod,
+                            claimant = expense.claimant,
+                            status = expense.status,
+                            description = expense.description,
+                            location = expense.location,
+                            isEditMode = true
+                        )
+                    }
+                }
+            } catch (e: Exception) {
+                _listState.value = _listState.value.copy(
+                    error = "Failed to load expense: ${e.message}"
+                )
+            }
+        }
+    }
+
+    fun dismissConfirmDialog() {
+        _showConfirmDialog.value = false
+    }
+
+    fun resetForm() {
+        _formState.value = ExpenseFormState(
+            projectId = _listState.value.selectedProjectId ?: ""
+        )
+        _saveSuccess.value = false
+    }
+
+    fun resetSaveSuccess() {
+        _saveSuccess.value = false
+    }
+
+    fun setProjectId(projectId: String) {
+        _listState.value = _listState.value.copy(selectedProjectId = projectId)
+        _formState.value = _formState.value.copy(projectId = projectId)
+        loadExpenses(projectId)
+    }
+}
