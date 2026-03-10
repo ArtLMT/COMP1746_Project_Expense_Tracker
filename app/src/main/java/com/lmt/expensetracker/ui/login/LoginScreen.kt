@@ -47,8 +47,8 @@ fun LoginScreen(viewModel: LoginViewModel = viewModel()) {
                 .fillMaxWidth()
                 .padding(bottom = 16.dp),
             colors = ButtonDefaults.buttonColors(
-                containerColor = Color.Green, // Set the background color
-                contentColor = Color.White)    // Set the text/content color
+                containerColor = MaterialTheme.colorScheme.primary, // Set the background color
+                contentColor = MaterialTheme.colorScheme.onPrimary)    // Set the text/content color
         ) {
             Text("Login")
         }

@@ -2,12 +2,12 @@ package com.lmt.expensetracker.ui.screens
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.HeaderSection
 import com.lmt.expensetracker.ui.components.SearchBarSection
-import com.lmt.expensetracker.ui.theme.CustomColors
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 // ============================================================================
@@ -27,7 +27,7 @@ fun DashboardContent(
     Column(
         modifier = modifier
             .fillMaxSize()
-            .background(CustomColors.BackgroundDark)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header Section
         HeaderSection(

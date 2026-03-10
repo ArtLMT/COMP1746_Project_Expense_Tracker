@@ -15,7 +15,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lmt.expensetracker.ui.theme.CustomColors
 import com.lmt.expensetracker.viewmodel.StatusCounts
 
 // ============================================================================
@@ -31,6 +30,7 @@ fun HeaderSection(
         modifier = Modifier
             .fillMaxWidth()
             .padding(20.dp)
+//            .background(MaterialTheme.colorScheme.background)
     ) {
         // Greeting & Notification
         Row(
@@ -44,7 +44,7 @@ fun HeaderSection(
                 Text(
                     text = "Good morning, Alex",
                     fontSize = 14.sp,
-                    color = Color(0xFF9CA3AF),
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f),
                     fontWeight = FontWeight.Medium,
                     modifier = Modifier.padding(bottom = 4.dp)
                 )
@@ -53,14 +53,14 @@ fun HeaderSection(
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
                     letterSpacing = (-0.5).sp,
-                    color = CustomColors.White
+                    color = MaterialTheme.colorScheme.onBackground
                 )
             }
             Box(
                 modifier = Modifier
                     .size(40.dp)
                     .background(
-                        color = Color(0xFF1E293B), // Match Tailwind gray-800
+                        color = MaterialTheme.colorScheme.surfaceVariant,
                         shape = RoundedCornerShape(50.dp)
                     )
                     .clickable { }
@@ -71,7 +71,7 @@ fun HeaderSection(
                     imageVector = Icons.Outlined.Notifications,
                     contentDescription = "Notifications",
                     modifier = Modifier.size(24.dp),
-                    tint = Color(0xFFD1D5DB) // Match Tailwind gray-300
+                    tint = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
@@ -80,7 +80,7 @@ fun HeaderSection(
             modifier = Modifier
                 .fillMaxWidth()
                 .background(
-                    color = Color(0x0DFFFFFF), // Match white/5
+                    color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f),
                     shape = RoundedCornerShape(12.dp)
                 )
                 .padding(4.dp),
@@ -112,11 +112,25 @@ fun StatusTab(
     modifier: Modifier = Modifier,
     onClick: () -> Unit
 ) {
+    val backgroundColor = if (isSelected) MaterialTheme.colorScheme.primary else Color.Transparent
+
+    val labelColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onBackground.copy(alpha = 0.6f)
+    }
+
+    val countColor = if (isSelected) {
+        MaterialTheme.colorScheme.onPrimary
+    } else {
+        MaterialTheme.colorScheme.onBackground
+    }
+
     Column(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
             .background(
-                color = if (isSelected) CustomColors.Primary else Color.Transparent,
+                color = backgroundColor,
                 shape = RoundedCornerShape(8.dp)
             )
             .clickable { onClick() }
@@ -125,16 +139,16 @@ fun StatusTab(
     ) {
         Text(
             text = label.uppercase(),
-            fontSize = 12.sp, // Match text-xs
+            fontSize = 12.sp,
             fontWeight = FontWeight.Bold,
-            letterSpacing = 0.5.sp, // tracking-wider
-            color = if (isSelected) CustomColors.Black else Color(0xFF9CA3AF) // gray-400
+            letterSpacing = 0.5.sp,
+            color = labelColor
         )
         Text(
             text = count.toString(),
-            fontSize = 18.sp, // Match text-lg
+            fontSize = 18.sp,
             fontWeight = FontWeight.Bold,
-            color = if (isSelected) CustomColors.Black else CustomColors.White
+            color = countColor
         )
     }
 }

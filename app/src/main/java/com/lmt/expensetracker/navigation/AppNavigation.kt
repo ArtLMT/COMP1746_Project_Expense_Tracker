@@ -20,7 +20,7 @@ import com.lmt.expensetracker.ui.screens.DashboardContent
 import com.lmt.expensetracker.ui.screens.ExpenseFormScreen
 import com.lmt.expensetracker.ui.screens.ExpenseListScreen
 import com.lmt.expensetracker.ui.screens.ProjectFormScreen
-import com.lmt.expensetracker.ui.theme.CustomColors
+import com.lmt.expensetracker.ui.screens.SettingScreen
 import com.lmt.expensetracker.viewmodel.ExpenseViewModel
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
@@ -38,8 +38,8 @@ fun AppNavigation(
     Scaffold(
         modifier = Modifier
             .fillMaxSize()
-            .background(CustomColors.BackgroundDark),
-        containerColor = CustomColors.BackgroundDark,
+            .background(MaterialTheme.colorScheme.background),
+        containerColor = MaterialTheme.colorScheme.background,
         floatingActionButton = {
             FloatingActionButton(
                 onClick = {
@@ -50,16 +50,15 @@ fun AppNavigation(
                 modifier = Modifier
                     .size(56.dp)
                     .offset(y = 48.dp),
-                containerColor = CustomColors.Primary,
-                contentColor = CustomColors.BackgroundDark,
+                containerColor = MaterialTheme.colorScheme.primary,
+                contentColor = MaterialTheme.colorScheme.onPrimary,
                 shape = RoundedCornerShape(28.dp)
             ) {
                 Icon(
                     imageVector = Icons.Outlined.Add,
                     contentDescription = "Add Project",
                     modifier = Modifier.size(32.dp),
-                    tint = CustomColors.BackgroundDark
-                )
+                    tint = MaterialTheme.colorScheme.onPrimary                )
             }
         },
         floatingActionButtonPosition = FabPosition.Center,
@@ -72,7 +71,7 @@ fun AppNavigation(
                     }
                 },
                 onSettingsClick = {
-                    navController.navigate(Routes.EXPENSE_LIST) {
+                    navController.navigate(Routes.SETTING) {
                         popUpTo(Routes.DASHBOARD)
                     }
                 }
@@ -114,25 +113,9 @@ fun AppNavigation(
                 )
             }
 
-            // All Expenses List
-            composable(Routes.EXPENSE_LIST) {
-                ExpenseListScreen(
-                    viewModel = expenseViewModel,
-                    projectId = null,
-                    onNavigateToCreateExpense = {
-                        expenseViewModel.resetForm()
-                        expenseViewModel.setEditMode(false)
-                        navController.navigate(Routes.expenseForm(""))
-                    },
-                    onNavigateToEditExpense = { expenseId ->
-                        expenseViewModel.loadExpenseForEdit(expenseId)
-                        expenseViewModel.setEditMode(true)
-                        navController.navigate(Routes.expenseForm(""))
-                    },
-                    onNavigateBack = {
-                        navController.popBackStack()
-                    }
-                )
+            // SETTING
+            composable(Routes.SETTING) {
+                SettingScreen(viewModel = projectViewModel)
             }
 
             // Expense Form (from All Expenses)

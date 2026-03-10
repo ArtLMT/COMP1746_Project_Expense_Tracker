@@ -28,7 +28,6 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
-import com.lmt.expensetracker.ui.theme.CustomColors
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 @Composable
@@ -48,13 +47,13 @@ fun ProjectFormScreen(
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .background(CustomColors.BackgroundDark)
+            .background(MaterialTheme.colorScheme.background)
     ) {
         // Header
         Row(
             modifier = Modifier
                 .fillMaxWidth()
-                .background(CustomColors.BackgroundDark)
+                .background(MaterialTheme.colorScheme.background)
                 .padding(horizontal = 20.dp, vertical = 20.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.SpaceBetween
@@ -62,7 +61,7 @@ fun ProjectFormScreen(
             Icon(
                 Icons.AutoMirrored.Filled.ArrowBack,
                 contentDescription = "Back",
-                tint = CustomColors.White,
+                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
                 modifier = Modifier
                     .size(24.dp)
                     .clickable { onNavigateBack() }
@@ -71,18 +70,18 @@ fun ProjectFormScreen(
                 text = if (formState.isEditMode) "Edit Project" else "New Project",
                 fontSize = 20.sp,
                 fontWeight = FontWeight.Bold,
-                color = CustomColors.White
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
             )
             Text(
                 text = "Save",
                 fontSize = 16.sp,
                 fontWeight = FontWeight.SemiBold,
-                color = CustomColors.Primary,
+                color = MaterialTheme.colorScheme.primary,
                 modifier = Modifier.clickable { viewModel.requestConfirmation() }
             )
         }
         
-        HorizontalDivider(color = Color(0xFF1F2937), thickness = 1.dp)
+        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
 
         // Form Content
         Column(
@@ -112,7 +111,7 @@ fun ProjectFormScreen(
                 )
             }
 
-            HorizontalDivider(color = Color(0x80346544), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
 
             // Section: Timeline & Status
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -147,7 +146,7 @@ fun ProjectFormScreen(
                         text = "STATUS *",
                         fontSize = 12.sp,
                         fontWeight = FontWeight.Medium,
-                        color = Color(0xFF93C8A5),
+                        color = MaterialTheme.colorScheme.primary,
                         modifier = Modifier.padding(bottom = 8.dp)
                     )
                     Box(modifier = Modifier.fillMaxWidth()) {
@@ -156,12 +155,12 @@ fun ProjectFormScreen(
                                 .fillMaxWidth()
                                 .height(56.dp)
                                 .background(
-                                    color = Color(0xFF1A3222),
+                                    color = MaterialTheme.colorScheme.surfaceVariant,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .border(
                                     width = 1.dp,
-                                    color = Color(0xFF346544),
+                                    color = MaterialTheme.colorScheme.outline,
                                     shape = RoundedCornerShape(12.dp)
                                 )
                                 .clickable { statusExpanded = !statusExpanded }
@@ -171,24 +170,24 @@ fun ProjectFormScreen(
                         ) {
                             Text(
                                 text = formState.status,
-                                color = CustomColors.White,
+                                color = MaterialTheme.colorScheme.onSurface,
                                 fontSize = 16.sp
                             )
                             Icon(
                                 Icons.Default.ArrowDropDown,
                                 contentDescription = "Select status",
-                                tint = Color(0xFF93C8A5)
+                                tint = MaterialTheme.colorScheme.primary
                             )
                         }
                         
                         DropdownMenu(
                             expanded = statusExpanded,
                             onDismissRequest = { statusExpanded = false },
-                            modifier = Modifier.background(CustomColors.SurfaceDark)
+                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
                         ) {
                             statusOptions.forEach { option ->
                                 DropdownMenuItem(
-                                    text = { Text(option, color = CustomColors.White) },
+                                    text = { Text(option, color = MaterialTheme.colorScheme.onSurface) },
                                     onClick = {
                                         viewModel.onStatusChange(option)
                                         statusExpanded = false
@@ -200,7 +199,7 @@ fun ProjectFormScreen(
                 }
             }
             
-            HorizontalDivider(color = Color(0x80346544), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
 
             // Section: Financials & People
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -215,14 +214,14 @@ fun ProjectFormScreen(
                         Icon(
                             Icons.Outlined.AttachMoney,
                             contentDescription = "Money",
-                            tint = Color(0xFF93C8A5),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     },
                     trailingContent = {
                         Text(
                             text = "USD",
-                            color = Color(0xFF93C8A5),
+                            color = MaterialTheme.colorScheme.primary,
                             fontWeight = FontWeight.Medium,
                             fontSize = 14.sp
                         )
@@ -239,13 +238,13 @@ fun ProjectFormScreen(
                         Box(
                             modifier = Modifier
                                 .size(32.dp)
-                                .background(Color(0xFF112116), RoundedCornerShape(8.dp)),
+                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(8.dp)),
                             contentAlignment = Alignment.Center
                         ) {
                             Icon(
                                 Icons.Outlined.PersonAdd,
                                 contentDescription = "Add Manager",
-                                tint = CustomColors.Primary,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(16.dp)
                             )
                         }
@@ -260,14 +259,14 @@ fun ProjectFormScreen(
                         Icon(
                             Icons.Outlined.Domain,
                             contentDescription = "Department",
-                            tint = Color(0xFF93C8A5),
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
                     }
                 )
             }
 
-            HorizontalDivider(color = Color(0x80346544), thickness = 1.dp)
+            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
 
             // Section: Additional Details
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
@@ -333,7 +332,7 @@ fun FormTextField(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.Medium,
-            color = Color(0xFF93C8A5), // text-[#93c8a5]
+            color = MaterialTheme.colorScheme.primary, // text-[#93c8a5]
             modifier = Modifier.padding(bottom = 8.dp)
         )
         
@@ -342,12 +341,12 @@ fun FormTextField(
                 .fillMaxWidth()
                 .height(if (maxLines > 1) 120.dp else 56.dp)
                 .background(
-                    color = Color(0xFF1A3222), // bg-[#1a3222]
+                    color = MaterialTheme.colorScheme.surfaceVariant, // bg-[#1a3222]
                     shape = RoundedCornerShape(12.dp)
                 )
                 .border(
                     width = 1.dp,
-                    color = if (isError) MaterialTheme.colorScheme.error else Color(0xFF346544), // border-[#346544]
+                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, // border-[#346544]
                     shape = RoundedCornerShape(12.dp)
                 )
                 .padding(horizontal = 16.dp, vertical = if (maxLines > 1) 16.dp else 0.dp),
@@ -363,7 +362,7 @@ fun FormTextField(
                 if (value.isEmpty()) {
                     Text(
                         text = placeholder,
-                        color = Color(0xFF93C8A5).copy(alpha = 0.5f), // text-[#93c8a5] placeholder
+                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), // text-[#93c8a5] placeholder
                         fontSize = 16.sp
                     )
                 }
@@ -372,10 +371,10 @@ fun FormTextField(
                     onValueChange = onValueChange,
                     maxLines = maxLines,
                     textStyle = TextStyle(
-                        color = Color.White,
+                        color = MaterialTheme.colorScheme.onSurface,
                         fontSize = 16.sp
                     ),
-                    cursorBrush = SolidColor(CustomColors.Primary),
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
                     modifier = Modifier.fillMaxWidth()
                 )
             }

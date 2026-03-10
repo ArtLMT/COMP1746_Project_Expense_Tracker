@@ -4,6 +4,8 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.lmt.expensetracker.data.database.AppDatabase
 import com.lmt.expensetracker.data.repository.ExpenseRepository
@@ -49,7 +51,11 @@ class MainActivity : ComponentActivity() {
         )[ExpenseViewModel::class.java]
 
         setContent {
-            ExpenseTrackerTheme {
+            // 1. Lấy trạng thái Theme từ ViewModel
+            val isDarkTheme by projectViewModel.isDarkTheme.collectAsState()
+
+            // 2. Truyền nó vào Theme của bạn
+            ExpenseTrackerTheme(darkTheme = isDarkTheme) {
                 AppNavigation(
                     projectViewModel = projectViewModel,
                     expenseViewModel = expenseViewModel

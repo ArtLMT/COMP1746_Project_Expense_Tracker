@@ -7,6 +7,7 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.collectIsPressedAsState
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -19,40 +20,40 @@ import androidx.compose.ui.draw.scale
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import com.lmt.expensetracker.data.entities.ProjectWithSpent
-import com.lmt.expensetracker.ui.theme.CustomColors
+import com.lmt.expensetracker.viewmodel.ProjectCardUiModel
 
+import java.time.LocalDate
+import java.time.format.DateTimeFormatter
+import java.time.format.DateTimeParseException
+
+// ============================================================================
+// UTILS: Format ngày tháng
+// ============================================================================
+//fun formatDisplayDate(dateString: String): String {
+//    if (dateString.isBlank()) return ""
+//    return try {
+//        val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd") // Hoặc yyyy/MM/dd tùy DB
+//        val parsedDate = LocalDate.parse(dateString, inputFormatter)
+//        val outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
+//        parsedDate.format(outputFormatter)
+//    } catch (e: DateTimeParseException) {
+//        dateString
+//    }
+//}
+
+// ============================================================================
+// PROJECT CARD COMPONENT
+// ============================================================================
 @Composable
 fun ProjectCard(
-    projectWithSpent: ProjectWithSpent,
+    uiModel: ProjectCardUiModel, // ĐÃ SỬA: Nhận UiModel thay vì ProjectWithSpent
     onEdit: () -> Unit,
     onDelete: () -> Unit,
     onCardClick: () -> Unit
 ) {
-    val project = projectWithSpent.project
-    val statusColor = when (project.status) {
-        "On Track" -> CustomColors.StatusActive
-        "At Risk" -> CustomColors.StatusAtRisk
-        "New" -> CustomColors.StatusNew
-        "Active" -> CustomColors.StatusActive
-        "Pending" -> CustomColors.StatusPending
-        else -> CustomColors.StatusPending
-    }
+    val project = uiModel.project
 
-    val statusBgColor = when (project.status) {
-        "On Track" -> CustomColors.StatusActive
-        "At Risk" -> CustomColors.StatusAtRiskBg
-        "New" -> CustomColors.StatusNewBg
-        "Active" -> CustomColors.StatusActive
-        "Pending" -> CustomColors.StatusPendingBg
-        else -> CustomColors.StatusPendingBg
-    }
-
-    val statusTextColor = when (project.status) {
-        "On Track" -> CustomColors.Black
-        "Active" -> CustomColors.Black
-        else -> statusColor
-    }
+    val status = uiModel.financialStatus
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -63,12 +64,12 @@ fun ProjectCard(
             .fillMaxWidth()
             .scale(scale)
             .background(
-                color = CustomColors.SurfaceDark,
+                color = MaterialTheme.colorScheme.surface,
                 shape = RoundedCornerShape(12.dp)
             )
             .border(
                 width = 1.dp,
-                color = CustomColors.BorderDark,
+                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.12f),
                 shape = RoundedCornerShape(12.dp)
             )
             .clip(RoundedCornerShape(12.dp))
@@ -93,29 +94,24 @@ fun ProjectCard(
                     text = project.name,
                     fontSize = 18.sp,
                     fontWeight = FontWeight.Bold,
-                    color = CustomColors.White,
+                    color = MaterialTheme.colorScheme.onSurface,
                     modifier = Modifier
                         .weight(1f)
                         .padding(end = 8.dp)
                 )
                 Box(
-                    modifier = Modifier
-                        .background(
-                            color = statusBgColor,
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .then(
-                            if (project.status == "At Risk") {
-                                Modifier.border(1.dp, CustomColors.StatusAtRiskBg, RoundedCornerShape(4.dp))
-                            } else Modifier
-                        )
-                        .padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
+                        modifier = Modifier
+                            .background(
+                                color = status.backgroundColor,
+                                shape = RoundedCornerShape(4.dp)
+                            )
+                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                        ) {
                     Text(
-                        text = project.status.uppercase(),
+                        text = status.displayName,
                         fontSize = 10.sp,
                         fontWeight = FontWeight.Bold,
-                        color = statusTextColor
+                        color = status.textColor
                     )
                 }
             }
@@ -139,12 +135,12 @@ fun ProjectCard(
                             imageVector = Icons.Outlined.Person,
                             contentDescription = "Manager",
                             modifier = Modifier.size(16.dp),
-                            tint = CustomColors.TextMuted
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
                             text = project.manager,
                             fontSize = 13.sp,
-                            color = CustomColors.TextMuted
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
 
@@ -158,14 +154,14 @@ fun ProjectCard(
                             imageVector = Icons.Outlined.Payments,
                             contentDescription = "Budget",
                             modifier = Modifier.size(16.dp),
-                            tint = CustomColors.TextMuted
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Spacer(modifier = Modifier.width(8.dp))
                         Text(
                             text = "$${project.budget}",
                             fontSize = 12.sp,
                             fontWeight = FontWeight.SemiBold,
-                            color = CustomColors.TextHighlight
+                            color = MaterialTheme.colorScheme.onSurface
                         )
                     }
                 }
@@ -184,12 +180,13 @@ fun ProjectCard(
                             imageVector = Icons.Outlined.CalendarToday,
                             contentDescription = "Date",
                             modifier = Modifier.size(16.dp),
-                            tint = CustomColors.TextMuted
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                         Text(
+//                            text = "${formatDisplayDate(project.startDate)} - ${formatDisplayDate(project.endDate)}",
                             text = "${project.startDate} - ${project.endDate}",
                             fontSize = 12.sp,
-                            color = CustomColors.TextMuted
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                     Spacer(modifier = Modifier.weight(1f))
@@ -204,20 +201,14 @@ fun ProjectCard(
                     .fillMaxWidth()
                     .height(6.dp)
                     .clip(androidx.compose.foundation.shape.CircleShape)
-                    .background(CustomColors.ProgressTrack)
+                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
             ) {
-                val progressFraction = if (project.budget > 0) {
-                    (projectWithSpent.spentAmount / project.budget).coerceIn(0.0, 1.0).toFloat()
-                } else {
-                    0f
-                }
-
                 Box(
                     modifier = Modifier
                         .fillMaxHeight()
-                        .fillMaxWidth(progressFraction)
-                        .clip(androidx.compose.foundation.shape.CircleShape)
-                        .background(CustomColors.Primary)
+                        .fillMaxWidth(uiModel.progressFraction.coerceAtMost(1f))
+                        .clip(CircleShape)
+                        .background(status.progressColor)
                 )
             }
         }

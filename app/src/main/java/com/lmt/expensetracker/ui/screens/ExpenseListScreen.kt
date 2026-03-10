@@ -1,5 +1,6 @@
 package com.lmt.expensetracker.ui.screens
 
+import android.annotation.SuppressLint
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -47,6 +48,7 @@ import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.viewmodel.ExpenseViewModel
 
+@SuppressLint("DefaultLocale")
 @Composable
 fun ExpenseListScreen(
     viewModel: ExpenseViewModel,
@@ -107,8 +109,8 @@ fun ExpenseListScreen(
                 placeholder = { Text("Search expenses...") },
                 shape = RoundedCornerShape(12.dp),
                 colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = Color(0xFF1F3A28),
-                    focusedContainerColor = Color(0xFF1F3A28),
+                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                     unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                     focusedTextColor = MaterialTheme.colorScheme.onBackground,
                     cursorColor = MaterialTheme.colorScheme.primary,
@@ -149,7 +151,7 @@ fun ExpenseListScreen(
                     .padding(vertical = 12.dp),
                 shape = RoundedCornerShape(12.dp),
                 colors = CardDefaults.cardColors(
-                    containerColor = Color(0xFF1F3A28)
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant
                 ),
                 elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
             ) {
@@ -181,7 +183,7 @@ fun ExpenseListScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0x0F000000))
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
         ) {
             when {
                 listState.isLoading -> {
@@ -248,7 +250,7 @@ fun FilterButton(
     Box(
         modifier = modifier
             .clip(RoundedCornerShape(8.dp))
-            .background(Color(0xFF1F3A28))
+            .background(MaterialTheme.colorScheme.surfaceVariant)
             .clickable { onClick() }
             .padding(horizontal = 12.dp, vertical = 10.dp),
         contentAlignment = Alignment.Center
@@ -257,7 +259,7 @@ fun FilterButton(
             text = label,
             fontSize = 12.sp,
             fontWeight = FontWeight.SemiBold,
-            color = Color(0xFF999999)
+            color = MaterialTheme.colorScheme.onSurfaceVariant
         )
     }
 }
@@ -275,7 +277,7 @@ fun ExpenseCard(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(12.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFF1F3A28)
+            containerColor = MaterialTheme.colorScheme.surfaceVariant
         ),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
     ) {
@@ -303,7 +305,7 @@ fun ExpenseCard(
                     Text(
                         text = expense.description.take(50),
                         fontSize = 11.sp,
-                        color = Color(0xFF999999),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1
                     )
                 }
@@ -311,10 +313,10 @@ fun ExpenseCard(
                     modifier = Modifier
                         .background(
                             color = when (expense.status) {
-                                "Pending" -> Color(0xFFF59E0B)
-                                "Paid" -> Color(0xFF10B981)
-                                "Reimbursed" -> Color(0xFF3B82F6)
-                                else -> Color(0xFF666666)
+                                "Pending" -> MaterialTheme.colorScheme.tertiaryContainer
+                                "Paid" -> MaterialTheme.colorScheme.primaryContainer
+                                "Reimbursed" -> MaterialTheme.colorScheme.secondaryContainer
+                                else -> MaterialTheme.colorScheme.outlineVariant
                             },
                             shape = RoundedCornerShape(4.dp)
                         )
@@ -324,7 +326,7 @@ fun ExpenseCard(
                         text = expense.status,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
             }
@@ -346,7 +348,7 @@ fun ExpenseCard(
                     Text(
                         text = expense.date,
                         fontSize = 11.sp,
-                        color = Color(0xFF999999)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Box {
@@ -354,7 +356,7 @@ fun ExpenseCard(
                         onClick = { menuExpanded = !menuExpanded },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Text("⋮", color = Color(0xFF666666), fontSize = 12.sp)
+                        Text("⋮", color = MaterialTheme.colorScheme.outlineVariant, fontSize = 12.sp)
                     }
                     DropdownMenu(
                         expanded = menuExpanded,
@@ -388,7 +390,7 @@ fun ExpenseCard(
                 Text(
                     text = "📍 ${expense.location}",
                     fontSize = 11.sp,
-                    color = Color(0xFF999999)
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
         }
