@@ -4,10 +4,12 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.repository.ExpenseRepository
+import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.utils.DateUtils
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -32,6 +34,12 @@ data class ExpenseFormState(
     val paymentMethodError: String? = null
 )
 
+data class ExpenseStatusCounts(
+    val pending: Int = 0,
+    val paid: Int = 0,
+    val reimbursed: Int = 0
+)
+
 data class ExpenseListState(
     val expenses: List<ExpenseEntity> = emptyList(),
     val isLoading: Boolean = false,
@@ -40,10 +48,15 @@ data class ExpenseListState(
     val filterStatus: String? = null,
     val filterType: String? = null,
     val selectedProjectId: String? = null,
-    val totalAmount: Double = 0.0
+    val totalAmount: Double = 0.0,
+    val projectBudget: Double? = null,
+    val statusCounts: ExpenseStatusCounts = ExpenseStatusCounts()
 )
 
-class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() {
+class ExpenseViewModel(
+    private val repository: ExpenseRepository,
+    private val projectRepository: ProjectRepository
+) : ViewModel() {
 
     private val _formState = MutableStateFlow(ExpenseFormState())
     val formState: StateFlow<ExpenseFormState> = _formState.asStateFlow()
@@ -92,6 +105,11 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         viewModelScope.launch {
             _listState.value = _listState.value.copy(isLoading = true)
             try {
+                // Load project budget if projectId is provided
+                val budget = if (projectId != null) {
+                    projectRepository.getProjectById(projectId).firstOrNull()?.budget
+                } else null
+
                 val flow = if (projectId != null) {
                     repository.getExpensesByProjectId(projectId)
                 } else {
@@ -99,6 +117,13 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                 }
 
                 flow.collect { expenses ->
+                    // Compute status counts from unfiltered expenses
+                    val counts = ExpenseStatusCounts(
+                        pending = expenses.count { it.status == "Pending" },
+                        paid = expenses.count { it.status == "Paid" },
+                        reimbursed = expenses.count { it.status == "Reimbursed" }
+                    )
+
                     var filtered = expenses
 
                     // Apply status filter
@@ -127,7 +152,9 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                         isLoading = false,
                         error = null,
                         selectedProjectId = projectId,
-                        totalAmount = total
+                        totalAmount = total,
+                        projectBudget = budget,
+                        statusCounts = counts
                     )
                 }
             } catch (e: Exception) {

@@ -7,7 +7,6 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.HeaderSection
-import com.lmt.expensetracker.ui.components.SearchBarSection
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 // ============================================================================
@@ -29,8 +28,16 @@ fun DashboardContent(
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header Section
+        // Generic Header Section
         HeaderSection(
+            title = "Dashboard",
+            subtitle = "Good morning, Alex",
+            searchQuery = searchQuery,
+            onSearchChange = {
+                searchQuery = it
+                viewModel.searchProjects(it)
+            },
+            searchPlaceholder = "Search projects...",
             selectedTab = selectedTab,
             onTabSelected = { index ->
                 selectedTab = index
@@ -41,11 +48,14 @@ fun DashboardContent(
                     3 -> viewModel.filterByStatus("On Hold")
                 }
             },
-            statusCounts = statusCounts
+            statusFilters = listOf(
+                "All" to (statusCounts.active + statusCounts.completed + statusCounts.onHold),
+                "Active" to statusCounts.active,
+                "Completed" to statusCounts.completed,
+                "On Hold" to statusCounts.onHold
+            ),
+            showNotification = true
         )
-
-        // Search Bar
-        SearchBarSection(searchQuery = searchQuery, onSearchChange = { searchQuery = it })
 
         // Delegate rendering projects to ProjectListScreen!
         ProjectListScreen(

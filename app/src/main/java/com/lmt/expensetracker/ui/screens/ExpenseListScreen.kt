@@ -2,50 +2,21 @@ package com.lmt.expensetracker.ui.screens
 
 import android.annotation.SuppressLint
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Edit
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.FloatingActionButton
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
-import com.lmt.expensetracker.data.entities.ExpenseEntity
-import com.lmt.expensetracker.ui.components.ConfirmationDialog
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lmt.expensetracker.ui.components.BudgetComparisonCard
+import com.lmt.expensetracker.ui.components.ExpenseCard
+import com.lmt.expensetracker.ui.components.HeaderSection
 import com.lmt.expensetracker.viewmodel.ExpenseViewModel
 
 @SuppressLint("DefaultLocale")
@@ -59,126 +30,54 @@ fun ExpenseListScreen(
 ) {
     val listState by viewModel.listState.collectAsStateWithLifecycle()
 
+    // Local UI state for the header tabs
+    var selectedTab by remember { mutableIntStateOf(0) }
+
+    // Build status filters list from ViewModel counts
+    val statusCounts = listState.statusCounts
+    val allCount = statusCounts.pending + statusCounts.paid + statusCounts.reimbursed
+    val statusFilters = listOf(
+        "All" to allCount,
+        "Pending" to statusCounts.pending,
+        "Paid" to statusCounts.paid,
+        "Reimbursed" to statusCounts.reimbursed
+    )
+
     Column(
         modifier = Modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
     ) {
-        // Header Section
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 20.dp, vertical = 24.dp)
-        ) {
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(bottom = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                if (projectId != null) {
-                    IconButton(
-                        onClick = onNavigateBack,
-                        modifier = Modifier.size(40.dp)
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = "Back",
-                            tint = MaterialTheme.colorScheme.onBackground
-                        )
-                    }
+        // ---- Generic Header: title, search, filter chips ----
+        HeaderSection(
+            title = if (projectId != null) "Project Expenses" else "All Expenses",
+            searchQuery = listState.searchQuery,
+            onSearchChange = { viewModel.searchExpenses(it) },
+            searchPlaceholder = "Search expenses...",
+            selectedTab = selectedTab,
+            onTabSelected = { index ->
+                selectedTab = index
+                when (index) {
+                    0 -> viewModel.filterByStatus(null)
+                    1 -> viewModel.filterByStatus("Pending")
+                    2 -> viewModel.filterByStatus("Paid")
+                    3 -> viewModel.filterByStatus("Reimbursed")
                 }
-                Text(
-                    text = if (projectId != null) "Project Expenses" else "All Expenses",
-                    style = MaterialTheme.typography.headlineSmall,
-                    fontWeight = FontWeight.Bold,
-                    color = MaterialTheme.colorScheme.onBackground,
-                    modifier = Modifier.weight(1f)
-                )
-            }
+            },
+            statusFilters = statusFilters,
+            onBackClick = if (projectId != null) onNavigateBack else null
+        )
 
-            // Search Bar
-            TextField(
-                value = listState.searchQuery,
-                onValueChange = { viewModel.searchExpenses(it) },
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                placeholder = { Text("Search expenses...") },
-                shape = RoundedCornerShape(12.dp),
-                colors = TextFieldDefaults.colors(
-                    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                    unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                    cursorColor = MaterialTheme.colorScheme.primary,
-                    unfocusedIndicatorColor = Color.Transparent,
-                    focusedIndicatorColor = Color.Transparent
-                ),
-                singleLine = true
-            )
+        // ---- Budget Comparison Card ----
+        BudgetComparisonCard(
+            totalExpenses = listState.totalAmount,
+            projectBudget = listState.projectBudget,
+            modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)
+        )
 
-            // Filter Buttons
-            Row(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                FilterButton(
-                    label = "All",
-                    onClick = { viewModel.filterByStatus(null) },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterButton(
-                    label = "Pending",
-                    onClick = { viewModel.filterByStatus("Pending") },
-                    modifier = Modifier.weight(1f)
-                )
-                FilterButton(
-                    label = "Paid",
-                    onClick = { viewModel.filterByStatus("Paid") },
-                    modifier = Modifier.weight(1f)
-                )
-            }
+        Spacer(modifier = Modifier.height(8.dp))
 
-            // Total Amount Card
-            Card(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                shape = RoundedCornerShape(12.dp),
-                colors = CardDefaults.cardColors(
-                    containerColor = MaterialTheme.colorScheme.surfaceVariant
-                ),
-                elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-            ) {
-                Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Text(
-                        text = "Total Expenses:",
-                        fontSize = 14.sp,
-                        fontWeight = FontWeight.SemiBold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = "\$${String.format("%.2f", listState.totalAmount)}",
-                        fontSize = 18.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.primary
-                    )
-                }
-            }
-        }
-
-        // Expenses List
+        // ---- Expenses List ----
         Box(
             modifier = Modifier
                 .fillMaxSize()
@@ -222,7 +121,7 @@ fun ExpenseListScreen(
                             .fillMaxWidth()
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
-                        contentPadding = androidx.compose.foundation.layout.PaddingValues(vertical = 16.dp)
+                        contentPadding = PaddingValues(vertical = 16.dp)
                     ) {
                         items(
                             items = listState.expenses,
@@ -240,174 +139,3 @@ fun ExpenseListScreen(
         }
     }
 }
-
-@Composable
-fun FilterButton(
-    label: String,
-    onClick: () -> Unit,
-    modifier: Modifier = Modifier
-) {
-    Box(
-        modifier = modifier
-            .clip(RoundedCornerShape(8.dp))
-            .background(MaterialTheme.colorScheme.surfaceVariant)
-            .clickable { onClick() }
-            .padding(horizontal = 12.dp, vertical = 10.dp),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.SemiBold,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
-
-@Composable
-fun ExpenseCard(
-    expense: ExpenseEntity,
-    onEdit: () -> Unit,
-    onDelete: () -> Unit
-) {
-    var menuExpanded by remember { mutableStateOf(false) }
-    var showDeleteDialog by remember { mutableStateOf(false) }
-
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        shape = RoundedCornerShape(12.dp),
-        colors = CardDefaults.cardColors(
-            containerColor = MaterialTheme.colorScheme.surfaceVariant
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp)
-    ) {
-        Column(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp)
-        ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.Top
-            ) {
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = expense.type,
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = expense.description.take(50),
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1
-                    )
-                }
-                Box(
-                    modifier = Modifier
-                        .background(
-                            color = when (expense.status) {
-                                "Pending" -> MaterialTheme.colorScheme.tertiaryContainer
-                                "Paid" -> MaterialTheme.colorScheme.primaryContainer
-                                "Reimbursed" -> MaterialTheme.colorScheme.secondaryContainer
-                                else -> MaterialTheme.colorScheme.outlineVariant
-                            },
-                            shape = RoundedCornerShape(4.dp)
-                        )
-                        .padding(horizontal = 8.dp, vertical = 2.dp)
-                ) {
-                    Text(
-                        text = expense.status,
-                        fontSize = 9.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
-            ) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(4.dp)
-                ) {
-                    Text(
-                        text = "${expense.currency} ${String.format("%.2f", expense.amount)}",
-                        style = MaterialTheme.typography.titleSmall,
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onBackground
-                    )
-                    Text(
-                        text = expense.date,
-                        fontSize = 11.sp,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                    )
-                }
-                Box {
-                    IconButton(
-                        onClick = { menuExpanded = !menuExpanded },
-                        modifier = Modifier.size(24.dp)
-                    ) {
-                        Text("⋮", color = MaterialTheme.colorScheme.outlineVariant, fontSize = 12.sp)
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false }
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text("Edit") },
-                            onClick = {
-                                menuExpanded = false
-                                onEdit()
-                            },
-                            leadingIcon = { Icon(Icons.Default.Edit, contentDescription = "Edit") }
-                        )
-                        DropdownMenuItem(
-                            text = { Text("Delete") },
-                            onClick = {
-                                menuExpanded = false
-                                showDeleteDialog = true
-                            },
-                            leadingIcon = { Icon(Icons.Default.Delete, contentDescription = "Delete") }
-                        )
-                    }
-                }
-            }
-
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
-            ) {
-                Text(
-                    text = "📍 ${expense.location}",
-                    fontSize = 11.sp,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
-            }
-        }
-    }
-
-    if (showDeleteDialog) {
-        ConfirmationDialog(
-            title = "Delete Expense",
-            message = "Are you sure you want to delete this expense? This action cannot be undone.",
-            confirmText = "Delete",
-            dismissText = "Cancel",
-            onConfirm = {
-                onDelete()
-                showDeleteDialog = false
-            },
-            onDismiss = { showDeleteDialog = false }
-        )
-    }
-}
-

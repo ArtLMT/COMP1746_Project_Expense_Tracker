@@ -62,7 +62,7 @@ fun CustomBottomNavigation(
                 )
             }
 
-            // Spac for FAB add button
+            // Space for FAB add button
             Spacer(modifier = Modifier.weight(1f))
 
             // Settings Button
