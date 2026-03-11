@@ -8,13 +8,15 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import com.lmt.expensetracker.ui.components.ProjectCard
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 
 @Composable
@@ -25,12 +27,12 @@ fun ProjectListScreen(
     onNavigateToProjectDetail: (String) -> Unit,
     modifier: Modifier = Modifier
 ) {
-    val listState by viewModel.listState.collectAsState()
+    val listState by viewModel.listState.collectAsStateWithLifecycle()
 
     Box(
         modifier = modifier
             .fillMaxSize()
-            .background(CustomColors.BackgroundDark)
+//            .background(MaterialTheme.colorScheme.background)
     ) {
         when {
             listState.isLoading -> {
@@ -40,7 +42,7 @@ fun ProjectListScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Loading projects...", color = CustomColors.White)
+                    Text("Loading projects...", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             listState.error != null -> {
@@ -50,7 +52,7 @@ fun ProjectListScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("Error: ${listState.error}", color = CustomColors.White)
+                    Text("Error: ${listState.error}", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             listState.projects.isEmpty() -> {
@@ -60,7 +62,7 @@ fun ProjectListScreen(
                         .padding(16.dp),
                     contentAlignment = Alignment.Center
                 ) {
-                    Text("No projects found", color = CustomColors.White)
+                    Text("No projects found", color = MaterialTheme.colorScheme.onSurface)
                 }
             }
             else -> {
@@ -74,12 +76,12 @@ fun ProjectListScreen(
                     items(
                         items = listState.projects,
                         key = { it.project.projectId }
-                    ) { projectWithSpent ->
+                    ) { uiModel ->
                         ProjectCard(
-                            projectWithSpent = projectWithSpent,
-                            onEdit = { onNavigateToEditProject(projectWithSpent.project.projectId) },
-                            onDelete = { viewModel.deleteProject(projectWithSpent.project) },
-                            onCardClick = { onNavigateToProjectDetail(projectWithSpent.project.projectId) }
+                            uiModel = uiModel,
+                            onEdit = { onNavigateToEditProject(uiModel.project.projectId) },
+                            onDelete = { viewModel.deleteProject(uiModel.project) },
+                            onCardClick = { onNavigateToProjectDetail(uiModel.project.projectId) }
                         )
                     }
                 }

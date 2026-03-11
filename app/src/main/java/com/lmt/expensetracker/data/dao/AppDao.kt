@@ -8,6 +8,7 @@ import androidx.room.Query
 import androidx.room.Update
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.entities.ProjectEntity
+import com.lmt.expensetracker.data.entities.ProjectWithSpent
 import kotlinx.coroutines.flow.Flow
 
 @Dao
@@ -70,7 +71,7 @@ interface AppDao {
         GROUP BY p.projectId
         ORDER BY p.startDate DESC
     """)
-    fun getAllProjectsWithSpent(): Flow<List<com.lmt.expensetracker.data.entities.ProjectWithSpent>>
+    fun getAllProjectsWithSpent(): Flow<List<ProjectWithSpent>>
 
     @Query("""
         SELECT p.*, COALESCE(SUM(e.amount), 0.0) as spentAmount 
@@ -81,7 +82,7 @@ interface AppDao {
         GROUP BY p.projectId
         ORDER BY p.startDate DESC
     """)
-    fun searchProjectsWithSpent(searchQuery: String): Flow<List<com.lmt.expensetracker.data.entities.ProjectWithSpent>>
+    fun searchProjectsWithSpent(searchQuery: String): Flow<List<ProjectWithSpent>>
 
     // ==================== EXPENSE OPERATIONS ====================
 

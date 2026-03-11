@@ -27,11 +27,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -50,9 +50,9 @@ fun ExpenseFormScreen(
     onNavigateBack: () -> Unit,
     onSaveSuccess: () -> Unit
 ) {
-    val formState by viewModel.formState.collectAsState()
-    val showConfirmDialog by viewModel.showConfirmDialog.collectAsState()
-    val saveSuccess by viewModel.saveSuccess.collectAsState()
+    val formState by viewModel.formState.collectAsStateWithLifecycle()
+    val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
+    val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
     var typeExpanded by remember { mutableStateOf(false) }
     var paymentMethodExpanded by remember { mutableStateOf(false) }
@@ -105,7 +105,7 @@ fun ExpenseFormScreen(
             modifier = Modifier
                 .fillMaxSize()
                 .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(Color(0x0F000000))
+                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
@@ -145,8 +145,8 @@ fun ExpenseFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFF1F3A28),
-                        focusedContainerColor = Color(0xFF1F3A28),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
                         unfocusedIndicatorColor = Color.Transparent,
@@ -184,8 +184,8 @@ fun ExpenseFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFF1F3A28),
-                        focusedContainerColor = Color(0xFF1F3A28),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
                         unfocusedIndicatorColor = Color.Transparent,
@@ -223,8 +223,8 @@ fun ExpenseFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFF1F3A28),
-                        focusedContainerColor = Color(0xFF1F3A28),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
                         unfocusedIndicatorColor = Color.Transparent,
@@ -262,8 +262,8 @@ fun ExpenseFormScreen(
                     modifier = Modifier.fillMaxWidth(),
                     shape = RoundedCornerShape(12.dp),
                     colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = Color(0xFF1F3A28),
-                        focusedContainerColor = Color(0xFF1F3A28),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                         unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                         focusedTextColor = MaterialTheme.colorScheme.onBackground,
                         unfocusedIndicatorColor = Color.Transparent,
@@ -330,7 +330,7 @@ fun ExpenseFormScreen(
                     Text(
                         text = "Save Expense",
                         fontWeight = FontWeight.Bold,
-                        color = Color.Black
+                        color = MaterialTheme.colorScheme.onPrimary
                     )
                 }
 
@@ -338,7 +338,7 @@ fun ExpenseFormScreen(
                     onClick = onNavigateBack,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    Text("Cancel", color = Color(0xFF999999))
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
             }
 
@@ -401,8 +401,8 @@ fun FormTextFieldComponent(
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
             colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = Color(0xFF1F3A28),
-                focusedContainerColor = Color(0xFF1F3A28),
+                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
+                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
                 unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
                 focusedTextColor = MaterialTheme.colorScheme.onBackground,
                 cursorColor = MaterialTheme.colorScheme.primary,
@@ -416,7 +416,7 @@ fun FormTextFieldComponent(
             Text(
                 text = errorMessage,
                 fontSize = 11.sp,
-                color = Color(0xFFFF6B6B)
+                color = MaterialTheme.colorScheme.error
             )
         }
     }
