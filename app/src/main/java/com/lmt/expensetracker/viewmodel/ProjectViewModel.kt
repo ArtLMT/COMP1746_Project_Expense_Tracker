@@ -80,6 +80,11 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
         _isDarkTheme.value = !_isDarkTheme.value
     }
 
+    // Single Source of Truth for status options — consumed by the UI layer
+    val statusOptions: List<String> = listOf(
+        "Active", "Completed", "On Hold"
+    )
+
     init {
         loadProjects()
     }

@@ -1,48 +1,34 @@
 package com.lmt.expensetracker.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
+import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
-import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import androidx.compose.ui.Alignment
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
 import com.lmt.expensetracker.viewmodel.ExpenseViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+// ==================== SCREEN ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ExpenseFormScreen(
     viewModel: ExpenseViewModel,
@@ -54,106 +40,166 @@ fun ExpenseFormScreen(
     val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
-    var typeExpanded by remember { mutableStateOf(false) }
-    var paymentMethodExpanded by remember { mutableStateOf(false) }
-    var statusExpanded by remember { mutableStateOf(false) }
-    var currencyExpanded by remember { mutableStateOf(false) }
-
-    val currencies = listOf("USD", "EUR", "GBP", "JPY", "VND")
-
-    // Set project ID on first composition
+    // ── Set project ID on first composition ──
     remember {
         viewModel.setProjectId(projectId)
         0
     }
 
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 16.dp, vertical = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            IconButton(
-                onClick = onNavigateBack,
-                modifier = Modifier.size(40.dp)
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = "Back",
-                    tint = MaterialTheme.colorScheme.onBackground
-                )
-            }
-            Text(
-                text = if (formState.isEditMode) "Edit Expense" else "New Expense",
-                style = MaterialTheme.typography.headlineSmall,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.weight(1f)
-            )
-        }
+    // ── Focus Requesters ──
+    val amountFocus = remember { FocusRequester() }
+    val claimantFocus = remember { FocusRequester() }
+    val descriptionFocus = remember { FocusRequester() }
+    val locationFocus = remember { FocusRequester() }
 
-        // Form Content
+    // ── Date Picker State ──
+    var showDatePicker by remember { mutableStateOf(false) }
+
+    // ── Dropdown States ──
+    var currencyExpanded by remember { mutableStateOf(false) }
+    var typeExpanded by remember { mutableStateOf(false) }
+    var paymentMethodExpanded by remember { mutableStateOf(false) }
+    var statusExpanded by remember { mutableStateOf(false) }
+
+    // ── Single Source of Truth from ViewModel ──
+    val currencies = viewModel.currencies
+    val expenseTypes = viewModel.expenseTypes
+    val paymentMethods = viewModel.paymentMethods
+    val statuses = viewModel.statuses
+
+    // ── Scaffold Layout ──
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = if (formState.isEditMode) "Edit Expense" else "New Expense"
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
+            )
+        },
+        bottomBar = {
+            BottomAppBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                Button(
+                    onClick = { viewModel.requestConfirmation() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("Save Expense")
+                }
+            }
+        }
+    ) { innerPadding ->
+
         Column(
             modifier = Modifier
                 .fillMaxSize()
-                .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
-                .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
+                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // Date
-            FormTextFieldComponent(
-                value = formState.date,
-                onValueChange = { viewModel.onDateChange(it) },
-                label = "Date (DD/MM/YYYY) *",
+            // ── Project (locked / read-only) ──
+            FormTextField(
+                value = projectId,
+                onValueChange = {},
+                label = "Project",
+                readOnly = true,
+                enabled = false
+            )
+
+            // ── Date — read-only, opens DatePicker on click ──
+            val dateInteraction = remember { MutableInteractionSource() }
+            LaunchedEffect(dateInteraction) {
+                dateInteraction.interactions.collect { interaction ->
+                    if (interaction is PressInteraction.Release) {
+                        showDatePicker = true
+                    }
+                }
+            }
+            FormTextField(
+                value = formatIsoToDisplay(formState.date),
+                onValueChange = {},
+                label = "Date",
+                placeholder = "DD-MM-YYYY",
+                readOnly = true,
                 isError = formState.dateError != null,
                 errorMessage = formState.dateError,
-                placeholder = "25/12/2024"
+                trailingIcon = {
+                    Icon(
+                        Icons.Outlined.CalendarToday,
+                        contentDescription = "Pick date",
+                        tint = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.size(20.dp)
+                    )
+                },
+                interactionSource = dateInteraction
             )
 
-            // Amount
-            FormTextFieldComponent(
+            // ── Amount ──
+            FormTextField(
                 value = formState.amount,
                 onValueChange = { viewModel.onAmountChange(it) },
-                label = "Amount *",
+                label = "Amount",
                 isError = formState.amountError != null,
                 errorMessage = formState.amountError,
-                placeholder = "1500.50"
+                placeholder = "1500.50",
+                modifier = Modifier.focusRequester(amountFocus),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Decimal,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { claimantFocus.requestFocus() }
+                )
             )
 
-            // Currency Dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                TextField(
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
+
+            // ── Currency — ExposedDropdownMenuBox ──
+            ExposedDropdownMenuBox(
+                expanded = currencyExpanded,
+                onExpandedChange = { currencyExpanded = it }
+            ) {
+                OutlinedTextField(
                     value = formState.currency,
                     onValueChange = {},
-                    label = { Text("Currency") },
                     readOnly = true,
+                    label = { Text("Currency") },
                     trailingIcon = {
-                        IconButton(onClick = { currencyExpanded = !currencyExpanded }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select currency")
-                        }
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = currencyExpanded)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
-                    )
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
                 )
-                DropdownMenu(
+                ExposedDropdownMenu(
                     expanded = currencyExpanded,
                     onDismissRequest = { currencyExpanded = false }
                 ) {
@@ -163,190 +209,210 @@ fun ExpenseFormScreen(
                             onClick = {
                                 viewModel.onCurrencyChange(currency)
                                 currencyExpanded = false
-                            }
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
 
-            // Expense Type Dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                TextField(
+            // ── Expense Type — ExposedDropdownMenuBox ──
+            ExposedDropdownMenuBox(
+                expanded = typeExpanded,
+                onExpandedChange = { typeExpanded = it }
+            ) {
+                OutlinedTextField(
                     value = formState.type,
                     onValueChange = {},
-                    label = { Text("Expense Type *") },
                     readOnly = true,
+                    label = { Text("Expense Type") },
                     trailingIcon = {
-                        IconButton(onClick = { typeExpanded = !typeExpanded }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select type")
-                        }
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = typeExpanded)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
-                    )
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
                 )
-                DropdownMenu(
+                ExposedDropdownMenu(
                     expanded = typeExpanded,
                     onDismissRequest = { typeExpanded = false }
                 ) {
-                    viewModel.expenseTypes.forEach { type ->
+                    expenseTypes.forEach { type ->
                         DropdownMenuItem(
                             text = { Text(type) },
                             onClick = {
                                 viewModel.onTypeChange(type)
                                 typeExpanded = false
-                            }
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
 
-            // Payment Method Dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                TextField(
+            // ── Payment Method — ExposedDropdownMenuBox ──
+            ExposedDropdownMenuBox(
+                expanded = paymentMethodExpanded,
+                onExpandedChange = { paymentMethodExpanded = it }
+            ) {
+                OutlinedTextField(
                     value = formState.paymentMethod,
                     onValueChange = {},
-                    label = { Text("Payment Method *") },
                     readOnly = true,
+                    label = { Text("Payment Method") },
                     trailingIcon = {
-                        IconButton(onClick = { paymentMethodExpanded = !paymentMethodExpanded }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select method")
-                        }
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = paymentMethodExpanded)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
-                    )
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
                 )
-                DropdownMenu(
+                ExposedDropdownMenu(
                     expanded = paymentMethodExpanded,
                     onDismissRequest = { paymentMethodExpanded = false }
                 ) {
-                    viewModel.paymentMethods.forEach { method ->
+                    paymentMethods.forEach { method ->
                         DropdownMenuItem(
                             text = { Text(method) },
                             onClick = {
                                 viewModel.onPaymentMethodChange(method)
                                 paymentMethodExpanded = false
-                            }
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
 
-            // Status Dropdown
-            Box(modifier = Modifier.fillMaxWidth()) {
-                TextField(
+            // ── Status — ExposedDropdownMenuBox ──
+            ExposedDropdownMenuBox(
+                expanded = statusExpanded,
+                onExpandedChange = { statusExpanded = it }
+            ) {
+                OutlinedTextField(
                     value = formState.status,
                     onValueChange = {},
-                    label = { Text("Status") },
                     readOnly = true,
+                    label = { Text("Status") },
                     trailingIcon = {
-                        IconButton(onClick = { statusExpanded = !statusExpanded }) {
-                            Icon(Icons.Default.ArrowDropDown, contentDescription = "Select status")
-                        }
+                        ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded)
                     },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = TextFieldDefaults.colors(
-                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                        unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                        unfocusedIndicatorColor = Color.Transparent,
-                        focusedIndicatorColor = Color.Transparent
-                    )
+                    colors = OutlinedTextFieldDefaults.colors(
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                    ),
+                    modifier = Modifier
+                        .menuAnchor()
+                        .fillMaxWidth()
                 )
-                DropdownMenu(
+                ExposedDropdownMenu(
                     expanded = statusExpanded,
                     onDismissRequest = { statusExpanded = false }
                 ) {
-                    viewModel.statuses.forEach { status ->
+                    statuses.forEach { status ->
                         DropdownMenuItem(
                             text = { Text(status) },
                             onClick = {
                                 viewModel.onStatusChange(status)
                                 statusExpanded = false
-                            }
+                            },
+                            contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                         )
                     }
                 }
             }
 
-            // Claimant
-            FormTextFieldComponent(
-                value = formState.claimant,
-                onValueChange = { viewModel.onClaimantChange(it) },
-                label = "Claimant *",
-                isError = formState.claimantError != null,
-                errorMessage = formState.claimantError
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
             )
 
-            // Description
-            FormTextFieldComponent(
+            // ── Claimant ──
+            FormTextField(
+                value = formState.claimant,
+                onValueChange = { viewModel.onClaimantChange(it) },
+                label = "Claimant",
+                isError = formState.claimantError != null,
+                errorMessage = formState.claimantError,
+                modifier = Modifier.focusRequester(claimantFocus),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { descriptionFocus.requestFocus() }
+                )
+            )
+
+            // ── Description ──
+            FormTextField(
                 value = formState.description,
                 onValueChange = { viewModel.onDescriptionChange(it) },
                 label = "Description (Optional)",
-                maxLines = 3
+                maxLines = 3,
+                modifier = Modifier.focusRequester(descriptionFocus),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Next
+                ),
+                keyboardActions = KeyboardActions(
+                    onNext = { locationFocus.requestFocus() }
+                )
             )
 
-            // Location
-            FormTextFieldComponent(
+            // ── Location ──
+            FormTextField(
                 value = formState.location,
                 onValueChange = { viewModel.onLocationChange(it) },
-                label = "Location (Optional)"
+                label = "Location (Optional)",
+                modifier = Modifier.focusRequester(locationFocus),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Text,
+                    imeAction = ImeAction.Done
+                )
             )
 
-            // Buttons
-            Column(
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(top = 20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp)
-            ) {
-                Button(
-                    onClick = { viewModel.requestConfirmation() },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(vertical = 8.dp),
-                    shape = RoundedCornerShape(12.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = MaterialTheme.colorScheme.primary
-                    )
-                ) {
-                    Text(
-                        text = "Save Expense",
-                        fontWeight = FontWeight.Bold,
-                        color = MaterialTheme.colorScheme.onPrimary
-                    )
-                }
-
-                TextButton(
-                    onClick = onNavigateBack,
-                    modifier = Modifier.fillMaxWidth()
-                ) {
-                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-            }
-
-            Box(modifier = Modifier.size(16.dp))
+            // Bottom spacer so content isn't hidden behind the BottomAppBar
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
-    // Confirmation Dialog
+    // ── Date Picker Dialog ──
+    if (showDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        viewModel.onDateChange(formatMillisToIso(millis))
+                    }
+                    showDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // ── Confirmation Dialog ──
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Expense Details",
@@ -355,7 +421,7 @@ fun ExpenseFormScreen(
                 Type: ${formState.type}
                 Payment Method: ${formState.paymentMethod}
                 Claimant: ${formState.claimant}
-                Date: ${formState.date}
+                Date: ${formatIsoToDisplay(formState.date)}
                 Status: ${formState.status}
                 
                 Do you want to save this expense?
@@ -367,7 +433,7 @@ fun ExpenseFormScreen(
         )
     }
 
-    // Success Dialog
+    // ── Success Dialog ──
     if (saveSuccess) {
         SuccessDialog(
             title = "Expense Saved",
@@ -380,44 +446,23 @@ fun ExpenseFormScreen(
     }
 }
 
-@Composable
-fun FormTextFieldComponent(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    isError: Boolean = false,
-    errorMessage: String? = null,
-    placeholder: String = "",
-    maxLines: Int = 1
-) {
-    Column(
-        modifier = Modifier.fillMaxWidth(),
-        verticalArrangement = Arrangement.spacedBy(4.dp)
-    ) {
-        TextField(
-            value = value,
-            onValueChange = onValueChange,
-            label = { Text(label) },
-            modifier = Modifier.fillMaxWidth(),
-            shape = RoundedCornerShape(12.dp),
-            colors = TextFieldDefaults.colors(
-                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant,
-                unfocusedTextColor = MaterialTheme.colorScheme.onBackground,
-                focusedTextColor = MaterialTheme.colorScheme.onBackground,
-                cursorColor = MaterialTheme.colorScheme.primary,
-                unfocusedIndicatorColor = Color.Transparent,
-                focusedIndicatorColor = Color.Transparent
-            ),
-            maxLines = maxLines,
-            singleLine = maxLines == 1
-        )
-        if (isError && errorMessage != null) {
-            Text(
-                text = errorMessage,
-                fontSize = 11.sp,
-                color = MaterialTheme.colorScheme.error
-            )
-        }
+// ==================== HELPERS ====================
+
+/** Convert epoch millis to ISO date string (yyyy-MM-dd). */
+private fun formatMillisToIso(millis: Long): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return sdf.format(Date(millis))
+}
+
+/** Convert ISO date (yyyy-MM-dd) to display format (dd-MM-yyyy). Returns raw value on error. */
+private fun formatIsoToDisplay(isoDate: String): String {
+    if (isoDate.isBlank()) return ""
+    return try {
+        val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val output = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+        val date = input.parse(isoDate)
+        if (date != null) output.format(date) else isoDate
+    } catch (_: Exception) {
+        isoDate
     }
 }

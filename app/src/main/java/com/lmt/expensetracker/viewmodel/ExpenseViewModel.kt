@@ -95,6 +95,9 @@ class ExpenseViewModel(
         "Reimbursed"
     )
 
+    // Single Source of Truth for currency options — consumed by the UI layer
+    val currencies: List<String> = listOf("USD", "EUR", "GBP", "JPY", "VND")
+
     init {
         loadExpenses()
     }
@@ -230,7 +233,7 @@ class ExpenseViewModel(
     fun onDateChange(date: String) {
         _formState.value = _formState.value.copy(
             date = date,
-            dateError = DateUtils.getDateValidationError(date)
+            dateError = if (date.isBlank()) "Date is required" else null
         )
     }
 
@@ -288,9 +291,8 @@ class ExpenseViewModel(
         val state = _formState.value
         var isValid = true
 
-        val dateError = DateUtils.getDateValidationError(state.date)
-        if (dateError != null) {
-            _formState.value = _formState.value.copy(dateError = dateError)
+        if (state.date.isBlank()) {
+            _formState.value = _formState.value.copy(dateError = "Date is required")
             isValid = false
         }
 

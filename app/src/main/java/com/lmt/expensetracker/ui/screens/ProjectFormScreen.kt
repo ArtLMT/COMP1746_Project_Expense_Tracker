@@ -1,35 +1,38 @@
 package com.lmt.expensetracker.ui.screens
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ArrowDropDown
 import androidx.compose.material.icons.outlined.AttachMoney
+import androidx.compose.material.icons.outlined.CalendarToday
 import androidx.compose.material.icons.outlined.Domain
 import androidx.compose.material.icons.outlined.PersonAdd
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.SolidColor
-import androidx.compose.ui.text.TextStyle
-import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.foundation.text.KeyboardActions
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
+// ==================== SCREEN ====================
+
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ProjectFormScreen(
     viewModel: ProjectViewModel,
@@ -40,173 +43,230 @@ fun ProjectFormScreen(
     val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
+    // ── Focus Requesters ──
+    val nameFocus = remember { FocusRequester() }
+    val descriptionFocus = remember { FocusRequester() }
+    val budgetFocus = remember { FocusRequester() }
+    val managerFocus = remember { FocusRequester() }
+    val clientFocus = remember { FocusRequester() }
+    val specialReqFocus = remember { FocusRequester() }
+
+    // ── Date Picker State ──
+    var showStartDatePicker by remember { mutableStateOf(false) }
+    var showEndDatePicker by remember { mutableStateOf(false) }
+
+    // ── Status Dropdown ──
     var statusExpanded by remember { mutableStateOf(false) }
+    val statusOptions = viewModel.statusOptions   // Single Source of Truth
 
-    val statusOptions = listOf("Active", "Completed", "On Hold", "On Track", "At Risk", "New", "Pending")
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .background(MaterialTheme.colorScheme.background)
-    ) {
-        // Header
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .background(MaterialTheme.colorScheme.background)
-                .padding(horizontal = 20.dp, vertical = 20.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Icon(
-                Icons.AutoMirrored.Filled.ArrowBack,
-                contentDescription = "Back",
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                modifier = Modifier
-                    .size(24.dp)
-                    .clickable { onNavigateBack() }
+    // ── Scaffold Layout ──
+    Scaffold(
+        topBar = {
+            CenterAlignedTopAppBar(
+                title = {
+                    Text(
+                        text = if (formState.isEditMode) "Edit Project" else "New Project"
+                    )
+                },
+                navigationIcon = {
+                    IconButton(onClick = onNavigateBack) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = "Back"
+                        )
+                    }
+                },
+                colors = TopAppBarDefaults.centerAlignedTopAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                    titleContentColor = MaterialTheme.colorScheme.onSurface
+                )
             )
-            Text(
-                text = if (formState.isEditMode) "Edit Project" else "New Project",
-                fontSize = 20.sp,
-                fontWeight = FontWeight.Bold,
-                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
-            Text(
-                text = "Save",
-                fontSize = 16.sp,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.clickable { viewModel.requestConfirmation() }
-            )
+        },
+        bottomBar = {
+            BottomAppBar(
+                containerColor = MaterialTheme.colorScheme.surface,
+                tonalElevation = 4.dp
+            ) {
+                Button(
+                    onClick = { viewModel.requestConfirmation() },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 20.dp),
+                    shape = MaterialTheme.shapes.medium
+                ) {
+                    Text("Save Project")
+                }
+            }
         }
-        
-        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant, thickness = 1.dp)
+    ) { innerPadding ->
 
-        // Form Content
         Column(
             modifier = Modifier
                 .fillMaxSize()
+                .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // Section: Core Info
+            // ── Section: Core Info ──
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.name,
                     onValueChange = { viewModel.onNameChange(it) },
-                    label = "PROJECT NAME *",
+                    label = "Project Name",
                     isError = formState.nameError != null,
-                    errorMessage = formState.nameError
+                    errorMessage = formState.nameError,
+                    modifier = Modifier.focusRequester(nameFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { descriptionFocus.requestFocus() }
+                    )
                 )
 
                 FormTextField(
                     value = formState.description,
                     onValueChange = { viewModel.onDescriptionChange(it) },
-                    label = "DESCRIPTION *",
+                    label = "Description",
                     isError = formState.descriptionError != null,
                     errorMessage = formState.descriptionError,
-                    maxLines = 3
+                    maxLines = 3,
+                    modifier = Modifier.focusRequester(descriptionFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { budgetFocus.requestFocus() }
+                    )
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
 
-            // Section: Timeline & Status
+            // ── Section: Timeline & Status ──
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(16.dp)
                 ) {
+                    // Start Date — read-only, opens DatePicker on click
+                    val startDateInteraction = remember { MutableInteractionSource() }
+                    LaunchedEffect(startDateInteraction) {
+                        startDateInteraction.interactions.collect { interaction ->
+                            if (interaction is PressInteraction.Release) {
+                                showStartDatePicker = true
+                            }
+                        }
+                    }
                     FormTextField(
                         value = formState.startDate,
-                        onValueChange = { viewModel.onStartDateChange(it) },
-                        label = "START DATE *",
-                        modifier = Modifier.weight(1f),
+                        onValueChange = {},
+                        label = "Start Date",
+                        placeholder = "YYYY-MM-DD",
+                        readOnly = true,
                         isError = formState.startDateError != null,
                         errorMessage = formState.startDateError,
-                        placeholder = "YYYY-MM-DD"
+                        modifier = Modifier.weight(1f),
+                        trailingIcon = {
+                            Icon(
+                                Icons.Outlined.CalendarToday,
+                                contentDescription = "Pick start date",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        interactionSource = startDateInteraction
                     )
 
+                    // End Date — read-only, opens DatePicker on click
+                    val endDateInteraction = remember { MutableInteractionSource() }
+                    LaunchedEffect(endDateInteraction) {
+                        endDateInteraction.interactions.collect { interaction ->
+                            if (interaction is PressInteraction.Release) {
+                                showEndDatePicker = true
+                            }
+                        }
+                    }
                     FormTextField(
                         value = formState.endDate,
-                        onValueChange = { viewModel.onEndDateChange(it) },
-                        label = "END DATE *",
-                        modifier = Modifier.weight(1f),
+                        onValueChange = {},
+                        label = "End Date",
+                        placeholder = "YYYY-MM-DD",
+                        readOnly = true,
                         isError = formState.endDateError != null,
                         errorMessage = formState.endDateError,
-                        placeholder = "YYYY-MM-DD"
+                        modifier = Modifier.weight(1f),
+                        trailingIcon = {
+                            Icon(
+                                Icons.Outlined.CalendarToday,
+                                contentDescription = "Pick end date",
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(20.dp)
+                            )
+                        },
+                        interactionSource = endDateInteraction
                     )
                 }
 
-                // Status Dropdown Customization
-                Column {
-                    Text(
-                        text = "STATUS *",
-                        fontSize = 12.sp,
-                        fontWeight = FontWeight.Medium,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(bottom = 8.dp)
+                // Status — ExposedDropdownMenuBox
+                ExposedDropdownMenuBox(
+                    expanded = statusExpanded,
+                    onExpandedChange = { statusExpanded = it }
+                ) {
+                    OutlinedTextField(
+                        value = formState.status,
+                        onValueChange = {},
+                        readOnly = true,
+                        label = { Text("Status") },
+                        trailingIcon = {
+                            ExposedDropdownMenuDefaults.TrailingIcon(expanded = statusExpanded)
+                        },
+                        colors = OutlinedTextFieldDefaults.colors(
+                            focusedBorderColor = MaterialTheme.colorScheme.primary,
+                            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant
+                        ),
+                        modifier = Modifier
+                            .menuAnchor()
+                            .fillMaxWidth()
                     )
-                    Box(modifier = Modifier.fillMaxWidth()) {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(56.dp)
-                                .background(
-                                    color = MaterialTheme.colorScheme.surfaceVariant,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .border(
-                                    width = 1.dp,
-                                    color = MaterialTheme.colorScheme.outline,
-                                    shape = RoundedCornerShape(12.dp)
-                                )
-                                .clickable { statusExpanded = !statusExpanded }
-                                .padding(horizontal = 16.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.SpaceBetween
-                        ) {
-                            Text(
-                                text = formState.status,
-                                color = MaterialTheme.colorScheme.onSurface,
-                                fontSize = 16.sp
+
+                    ExposedDropdownMenu(
+                        expanded = statusExpanded,
+                        onDismissRequest = { statusExpanded = false }
+                    ) {
+                        statusOptions.forEach { option ->
+                            DropdownMenuItem(
+                                text = { Text(option) },
+                                onClick = {
+                                    viewModel.onStatusChange(option)
+                                    statusExpanded = false
+                                },
+                                contentPadding = ExposedDropdownMenuDefaults.ItemContentPadding
                             )
-                            Icon(
-                                Icons.Default.ArrowDropDown,
-                                contentDescription = "Select status",
-                                tint = MaterialTheme.colorScheme.primary
-                            )
-                        }
-                        
-                        DropdownMenu(
-                            expanded = statusExpanded,
-                            onDismissRequest = { statusExpanded = false },
-                            modifier = Modifier.background(MaterialTheme.colorScheme.surface)
-                        ) {
-                            statusOptions.forEach { option ->
-                                DropdownMenuItem(
-                                    text = { Text(option, color = MaterialTheme.colorScheme.onSurface) },
-                                    onClick = {
-                                        viewModel.onStatusChange(option)
-                                        statusExpanded = false
-                                    }
-                                )
-                            }
                         }
                     }
                 }
             }
-            
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
 
-            // Section: Financials & People
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
+
+            // ── Section: Financials & People ──
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.budget,
                     onValueChange = { viewModel.onBudgetChange(it) },
-                    label = "BUDGET *",
+                    label = "Budget",
                     isError = formState.budgetError != null,
                     errorMessage = formState.budgetError,
                     placeholder = "0.00",
@@ -218,43 +278,51 @@ fun ProjectFormScreen(
                             modifier = Modifier.size(20.dp)
                         )
                     },
-                    trailingContent = {
+                    trailingIcon = {
                         Text(
                             text = "USD",
                             color = MaterialTheme.colorScheme.primary,
-                            fontWeight = FontWeight.Medium,
-                            fontSize = 14.sp
+                            style = MaterialTheme.typography.labelLarge
                         )
-                    }
+                    },
+                    modifier = Modifier.focusRequester(budgetFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Decimal,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { managerFocus.requestFocus() }
+                    )
                 )
 
                 FormTextField(
                     value = formState.manager,
                     onValueChange = { viewModel.onManagerChange(it) },
-                    label = "PROJECT MANAGER *",
+                    label = "Project Manager",
                     isError = formState.managerError != null,
                     errorMessage = formState.managerError,
-                    trailingContent = {
-                        Box(
-                            modifier = Modifier
-                                .size(32.dp)
-                                .background(MaterialTheme.colorScheme.secondaryContainer, RoundedCornerShape(8.dp)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Icon(
-                                Icons.Outlined.PersonAdd,
-                                contentDescription = "Add Manager",
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-                    }
+                    trailingIcon = {
+                        Icon(
+                            Icons.Outlined.PersonAdd,
+                            contentDescription = "Add Manager",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.size(20.dp)
+                        )
+                    },
+                    modifier = Modifier.focusRequester(managerFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { clientFocus.requestFocus() }
+                    )
                 )
-                
+
                 FormTextField(
                     value = formState.clientDepartmentInfo,
                     onValueChange = { viewModel.onClientInfoChange(it) },
-                    label = "CLIENT / DEPARTMENT (OPTIONAL)",
+                    label = "Client / Department (Optional)",
                     leadingIcon = {
                         Icon(
                             Icons.Outlined.Domain,
@@ -262,34 +330,92 @@ fun ProjectFormScreen(
                             tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(20.dp)
                         )
-                    }
+                    },
+                    modifier = Modifier.focusRequester(clientFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Next
+                    ),
+                    keyboardActions = KeyboardActions(
+                        onNext = { specialReqFocus.requestFocus() }
+                    )
                 )
             }
 
-            HorizontalDivider(color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), thickness = 1.dp)
+            HorizontalDivider(
+                color = MaterialTheme.colorScheme.outlineVariant,
+                thickness = 1.dp
+            )
 
-            // Section: Additional Details
+            // ── Section: Additional Details ──
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.specialRequirements,
                     onValueChange = { viewModel.onSpecialRequirementsChange(it) },
-                    label = "SPECIAL REQUIREMENTS (OPTIONAL)",
-                    maxLines = 3
+                    label = "Special Requirements (Optional)",
+                    maxLines = 3,
+                    modifier = Modifier.focusRequester(specialReqFocus),
+                    keyboardOptions = KeyboardOptions(
+                        keyboardType = KeyboardType.Text,
+                        imeAction = ImeAction.Done
+                    )
                 )
             }
 
-            Box(modifier = Modifier.size(32.dp))
+            // Bottom spacer so content isn't hidden behind the BottomAppBar
+            Spacer(modifier = Modifier.height(16.dp))
         }
     }
 
-    // Confirmation Dialog
+    // ── Date Picker Dialogs ──
+    if (showStartDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showStartDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        viewModel.onStartDateChange(formatMillisToDate(millis))
+                    }
+                    showStartDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showStartDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    if (showEndDatePicker) {
+        val datePickerState = rememberDatePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showEndDatePicker = false },
+            confirmButton = {
+                TextButton(onClick = {
+                    datePickerState.selectedDateMillis?.let { millis ->
+                        viewModel.onEndDateChange(formatMillisToDate(millis))
+                    }
+                    showEndDatePicker = false
+                }) { Text("OK") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEndDatePicker = false }) { Text("Cancel") }
+            }
+        ) {
+            DatePicker(state = datePickerState)
+        }
+    }
+
+    // ── Confirmation Dialog ──
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Project Details",
             message = """
                 Name: ${formState.name}
                 Manager: ${formState.manager}
-                Budget: $${formState.budget}
+                Budget: ${'$'}${formState.budget}
                 Status: ${formState.status}
                 
                 Do you want to save this project?
@@ -301,7 +427,7 @@ fun ProjectFormScreen(
         )
     }
 
-    // Success Dialog
+    // ── Success Dialog ──
     if (saveSuccess) {
         SuccessDialog(
             title = "Project Saved",
@@ -314,6 +440,15 @@ fun ProjectFormScreen(
     }
 }
 
+// ==================== HELPER ====================
+
+private fun formatMillisToDate(millis: Long): String {
+    val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+    return sdf.format(Date(millis))
+}
+
+// ==================== FORM TEXT FIELD ====================
+
 @Composable
 fun FormTextField(
     value: String,
@@ -324,75 +459,45 @@ fun FormTextField(
     isError: Boolean = false,
     errorMessage: String? = null,
     maxLines: Int = 1,
+    readOnly: Boolean = false,
+    enabled: Boolean = true,
     leadingIcon: @Composable (() -> Unit)? = null,
-    trailingContent: @Composable (() -> Unit)? = null
+    trailingIcon: @Composable (() -> Unit)? = null,
+    keyboardOptions: KeyboardOptions = KeyboardOptions.Default,
+    keyboardActions: KeyboardActions = KeyboardActions.Default,
+    interactionSource: MutableInteractionSource? = null
 ) {
-    Column(modifier = modifier) {
-        Text(
-            text = label,
-            fontSize = 12.sp,
-            fontWeight = FontWeight.Medium,
-            color = MaterialTheme.colorScheme.primary, // text-[#93c8a5]
-            modifier = Modifier.padding(bottom = 8.dp)
-        )
-        
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(if (maxLines > 1) 120.dp else 56.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surfaceVariant, // bg-[#1a3222]
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .border(
-                    width = 1.dp,
-                    color = if (isError) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.outline, // border-[#346544]
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(horizontal = 16.dp, vertical = if (maxLines > 1) 16.dp else 0.dp),
-            verticalAlignment = if (maxLines > 1) Alignment.Top else Alignment.CenterVertically
-        ) {
-            if (leadingIcon != null) {
-                Box(modifier = Modifier.padding(end = 12.dp)) {
-                    leadingIcon()
-                }
-            }
-            
-            Box(modifier = Modifier.weight(1f)) {
-                if (value.isEmpty()) {
-                    Text(
-                        text = placeholder,
-                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f), // text-[#93c8a5] placeholder
-                        fontSize = 16.sp
-                    )
-                }
-                BasicTextField(
-                    value = value,
-                    onValueChange = onValueChange,
-                    maxLines = maxLines,
-                    textStyle = TextStyle(
-                        color = MaterialTheme.colorScheme.onSurface,
-                        fontSize = 16.sp
-                    ),
-                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                    modifier = Modifier.fillMaxWidth()
-                )
-            }
-            
-            if (trailingContent != null) {
-                Box(modifier = Modifier.padding(start = 12.dp)) {
-                    trailingContent()
-                }
-            }
-        }
-        
-        if (isError && errorMessage != null) {
-            Text(
-                text = errorMessage,
-                color = MaterialTheme.colorScheme.error,
-                fontSize = 12.sp,
-                modifier = Modifier.padding(top = 4.dp, start = 4.dp)
-            )
-        }
-    }
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        placeholder = if (placeholder.isNotEmpty()) {
+            { Text(placeholder) }
+        } else null,
+        leadingIcon = leadingIcon,
+        trailingIcon = trailingIcon,
+        supportingText = if (isError && errorMessage != null) {
+            { Text(errorMessage) }
+        } else null,
+        isError = isError,
+        singleLine = maxLines == 1,
+        maxLines = maxLines,
+        readOnly = readOnly,
+        enabled = enabled,
+        keyboardOptions = keyboardOptions,
+        keyboardActions = keyboardActions,
+        interactionSource = interactionSource ?: remember { MutableInteractionSource() },
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = MaterialTheme.colorScheme.primary,
+            unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+            focusedLabelColor = MaterialTheme.colorScheme.primary,
+            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+            cursorColor = MaterialTheme.colorScheme.primary,
+            errorBorderColor = MaterialTheme.colorScheme.error,
+            errorLabelColor = MaterialTheme.colorScheme.error,
+            errorSupportingTextColor = MaterialTheme.colorScheme.error
+        ),
+        shape = MaterialTheme.shapes.small,
+        modifier = modifier.fillMaxWidth()
+    )
 }
