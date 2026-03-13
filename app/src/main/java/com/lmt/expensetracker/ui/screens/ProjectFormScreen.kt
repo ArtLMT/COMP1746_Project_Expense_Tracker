@@ -22,6 +22,10 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
@@ -412,18 +416,30 @@ fun ProjectFormScreen(
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Project Details",
-            message = """
-                Name: ${formState.name}
-                Manager: ${formState.manager}
-                Budget: ${'$'}${formState.budget}
-                Status: ${formState.status}
-                
-                Do you want to save this project?
-            """.trimIndent(),
             confirmText = "Save",
             dismissText = "Cancel",
             onConfirm = { viewModel.saveProject() },
-            onDismiss = { viewModel.dismissConfirmDialog() }
+            onDismiss = { viewModel.dismissConfirmDialog() },
+            messageContent = {
+                val labelStyle = SpanStyle(fontWeight = FontWeight.Bold)
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(labelStyle) { append("Name: ") }
+                        val safeName = if (formState.name.length > 50) formState.name.take(50) + "..." else formState.name
+                        append("$safeName\n")
+                        withStyle(labelStyle) { append("Manager: ") }
+                        val safeManager = if (formState.manager.length > 50) formState.manager.take(50) + "..." else formState.manager
+                        append("$safeManager\n")
+                        withStyle(labelStyle) { append("Budget: ") }
+                        append("${"$"}${formState.budget}\n")
+                        withStyle(labelStyle) { append("Timeline: ") }
+                        append("${formatIsoToDisplay(formState.startDate)} to ${formatIsoToDisplay(formState.endDate)}\n")
+                        withStyle(labelStyle) { append("Status: ") }
+                        append("${formState.status}\n\n")
+                        append("Do you want to save this project?")
+                    }
+                )
+            }
         )
     }
 
@@ -440,11 +456,23 @@ fun ProjectFormScreen(
     }
 }
 
-// ==================== HELPER ====================
-
+// ==================== HELPERS ====================
 private fun formatMillisToDate(millis: Long): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(Date(millis))
+}
+
+/** Convert ISO date (yyyy-MM-dd) to display format (dd-MM-yyyy). Returns raw value on error. */
+private fun formatIsoToDisplay(isoDate: String): String {
+    if (isoDate.isBlank()) return ""
+    return try {
+        val input = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+        val output = SimpleDateFormat("dd-MM-yyyy", Locale.getDefault())
+        val date = input.parse(isoDate)
+        if (date != null) output.format(date) else isoDate
+    } catch (_: Exception) {
+        isoDate
+    }
 }
 
 // ==================== FORM TEXT FIELD ====================

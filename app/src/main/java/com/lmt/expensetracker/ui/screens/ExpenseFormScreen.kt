@@ -18,6 +18,10 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
 import com.lmt.expensetracker.ui.components.SuccessDialog
@@ -416,20 +420,34 @@ fun ExpenseFormScreen(
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Expense Details",
-            message = """
-                Amount: ${formState.currency} ${formState.amount}
-                Type: ${formState.type}
-                Payment Method: ${formState.paymentMethod}
-                Claimant: ${formState.claimant}
-                Date: ${formatIsoToDisplay(formState.date)}
-                Status: ${formState.status}
-                
-                Do you want to save this expense?
-            """.trimIndent(),
             confirmText = "Save",
             dismissText = "Cancel",
             onConfirm = { viewModel.saveExpense() },
-            onDismiss = { viewModel.dismissConfirmDialog() }
+            onDismiss = { viewModel.dismissConfirmDialog() },
+            messageContent = {
+                val labelStyle = SpanStyle(fontWeight = FontWeight.Bold)
+                Text(
+                    text = buildAnnotatedString {
+                        withStyle(labelStyle) { append("Amount: ") }
+                        append("${formState.currency} ${formState.amount}\n")
+                        withStyle(labelStyle) { append("Type: ") }
+                        append("${formState.type}\n")
+                        withStyle(labelStyle) { append("Payment Method: ") }
+                        append("${formState.paymentMethod}\n")
+                        withStyle(labelStyle) { append("Claimant: ") }
+                        val safeClaimant = if (formState.claimant.length > 50) formState.claimant.take(50) + "..." else formState.claimant
+                        append("$safeClaimant\n")
+                        withStyle(labelStyle) { append("Description: ") }
+                        val safeDesc = if (formState.description.length > 100) formState.description.take(100) + "..." else formState.description
+                        append("$safeDesc\n")
+                        withStyle(labelStyle) { append("Date: ") }
+                        append("${formatIsoToDisplay(formState.date)}\n")
+                        withStyle(labelStyle) { append("Status: ") }
+                        append("${formState.status}\n\n")
+                        append("Do you want to save this expense?")
+                    }
+                )
+            }
         )
     }
 

@@ -268,9 +268,10 @@ class ExpenseViewModel(
     }
 
     fun onClaimantChange(claimant: String) {
+        val sanitized = claimant.take(500)
         _formState.value = _formState.value.copy(
-            claimant = claimant,
-            claimantError = if (claimant.isBlank()) "Claimant name is required" else null
+            claimant = sanitized,
+            claimantError = if (sanitized.isBlank()) "Claimant name is required" else null
         )
     }
 
@@ -279,11 +280,11 @@ class ExpenseViewModel(
     }
 
     fun onDescriptionChange(description: String) {
-        _formState.value = _formState.value.copy(description = description)
+        _formState.value = _formState.value.copy(description = description.take(500))
     }
 
     fun onLocationChange(location: String) {
-        _formState.value = _formState.value.copy(location = location)
+        _formState.value = _formState.value.copy(location = location.take(500))
     }
 
     // Validate form
@@ -339,7 +340,6 @@ class ExpenseViewModel(
                 }
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
-                resetForm()
                 loadExpenses(_listState.value.selectedProjectId)
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(
@@ -356,23 +356,22 @@ class ExpenseViewModel(
     fun loadExpenseForEdit(expenseId: String) {
         viewModelScope.launch {
             try {
-                repository.getExpenseById(expenseId).collect { expense ->
-                    if (expense != null) {
-                        _formState.value = ExpenseFormState(
-                            expenseId = expense.expenseId,
-                            projectId = expense.projectId,
-                            date = expense.date,
-                            amount = expense.amount.toString(),
-                            currency = expense.currency,
-                            type = expense.type,
-                            paymentMethod = expense.paymentMethod,
-                            claimant = expense.claimant,
-                            status = expense.status,
-                            description = expense.description,
-                            location = expense.location,
-                            isEditMode = true
-                        )
-                    }
+                val expense = repository.getExpenseById(expenseId).firstOrNull()
+                if (expense != null) {
+                    _formState.value = ExpenseFormState(
+                        expenseId = expense.expenseId,
+                        projectId = expense.projectId,
+                        date = expense.date,
+                        amount = expense.amount.toString(),
+                        currency = expense.currency,
+                        type = expense.type,
+                        paymentMethod = expense.paymentMethod,
+                        claimant = expense.claimant,
+                        status = expense.status,
+                        description = expense.description,
+                        location = expense.location,
+                        isEditMode = true
+                    )
                 }
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(

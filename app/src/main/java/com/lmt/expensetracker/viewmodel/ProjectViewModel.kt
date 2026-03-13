@@ -8,6 +8,7 @@ import com.lmt.expensetracker.ui.theme.BudgetStatus
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -202,16 +203,18 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onNameChange(name: String) {
+        val sanitized = name.take(500)
         _formState.value = _formState.value.copy(
-            name = name,
-            nameError = if (name.isBlank()) "Project name is required" else null
+            name = sanitized,
+            nameError = if (sanitized.isBlank()) "Project name is required" else null
         )
     }
 
     fun onDescriptionChange(description: String) {
+        val sanitized = description.take(500)
         _formState.value = _formState.value.copy(
-            description = description,
-            descriptionError = if (description.isBlank()) "Description is required" else null
+            description = sanitized,
+            descriptionError = if (sanitized.isBlank()) "Description is required" else null
         )
     }
 
@@ -230,9 +233,10 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onManagerChange(manager: String) {
+        val sanitized = manager.take(500)
         _formState.value = _formState.value.copy(
-            manager = manager,
-            managerError = if (manager.isBlank()) "Manager name is required" else null
+            manager = sanitized,
+            managerError = if (sanitized.isBlank()) "Manager name is required" else null
         )
     }
 
@@ -253,11 +257,11 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onSpecialRequirementsChange(special: String) {
-        _formState.value = _formState.value.copy(specialRequirements = special)
+        _formState.value = _formState.value.copy(specialRequirements = special.take(500))
     }
 
     fun onClientInfoChange(info: String) {
-        _formState.value = _formState.value.copy(clientDepartmentInfo = info)
+        _formState.value = _formState.value.copy(clientDepartmentInfo = info.take(500))
     }
 
     private fun validateForm(): Boolean {
@@ -299,7 +303,6 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
                 else repository.insertProject(project)
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
-                resetForm()
                 loadProjects()
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(error = "Failed to save project: ${e.message}")
@@ -311,22 +314,21 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun loadProjectForEdit(projectId: String) {
         viewModelScope.launch {
-            repository.getProjectById(projectId).collect { project ->
-                project?.let {
-                    _formState.value = ProjectFormState(
-                        projectId = it.projectId,
-                        name = it.name,
-                        description = it.description,
-                        startDate = it.startDate,
-                        endDate = it.endDate,
-                        manager = it.manager,
-                        status = it.status,
-                        budget = it.budget.toString(),
-                        specialRequirements = it.specialRequirements,
-                        clientDepartmentInfo = it.clientDepartmentInfo,
-                        isEditMode = true
-                    )
-                }
+            val project = repository.getProjectById(projectId).firstOrNull()
+            project?.let {
+                _formState.value = ProjectFormState(
+                    projectId = it.projectId,
+                    name = it.name,
+                    description = it.description,
+                    startDate = it.startDate,
+                    endDate = it.endDate,
+                    manager = it.manager,
+                    status = it.status,
+                    budget = it.budget.toString(),
+                    specialRequirements = it.specialRequirements,
+                    clientDepartmentInfo = it.clientDepartmentInfo,
+                    isEditMode = true
+                )
             }
         }
     }
