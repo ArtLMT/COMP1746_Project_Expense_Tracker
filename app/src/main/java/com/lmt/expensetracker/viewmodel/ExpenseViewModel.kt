@@ -45,7 +45,6 @@ data class ExpenseListState(
     val expenses: List<ExpenseEntity> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val searchQuery: String = "",
     val filterStatus: String? = null,
     val filterType: String? = null,
     val selectedProjectId: String? = null,
@@ -96,13 +95,8 @@ class ExpenseViewModel(
         "Reimbursed"
     )
 
-    // Single Source of Truth for currency options — consumed by the UI layer
     val currencies: List<String> = listOf("USD", "EUR", "GBP", "JPY", "VND")
 
-    init {
-//        loadExpenses()
-    //TODO: Without paramenter make this confuse which project to open, result in false screen's data
-    }
 
     // ==================== EXPENSE LIST OPERATIONS ====================
     private var loadJob: Job? = null
@@ -131,25 +125,11 @@ class ExpenseViewModel(
                         reimbursed = expenses.count { it.status == "Reimbursed" }
                     )
 
-                    var filtered = expenses
-
-                    // Apply status filter
-                    if (_listState.value.filterStatus != null) {
-                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
-                    }
-
-                    // Apply type filter
-                    if (_listState.value.filterType != null) {
-                        filtered = filtered.filter { it.type == _listState.value.filterType }
-                    }
-
-                    // Apply search query
-                    if (_listState.value.searchQuery.isNotEmpty()) {
-                        filtered = filtered.filter {
-                            it.description.contains(_listState.value.searchQuery, ignoreCase = true) ||
-                                    it.claimant.contains(_listState.value.searchQuery, ignoreCase = true) ||
-                                    it.location.contains(_listState.value.searchQuery, ignoreCase = true)
-                        }
+                    val currentState = _listState.value
+                    var filtered = expenses.filter { expense ->
+                        val matchesStatus = if (currentState.filterStatus != null) expense.status == currentState.filterStatus else true
+                        val matchesType = if (currentState.filterType != null) expense.type == currentState.filterType else true
+                        matchesStatus && matchesType
                     }
 
                     val total = filtered.sumOf { it.amount }
@@ -173,41 +153,7 @@ class ExpenseViewModel(
         }
     }
 
-    fun searchExpenses(query: String) {
-        _listState.value = _listState.value.copy(searchQuery = query)
-        viewModelScope.launch {
-            try {
-                repository.searchExpenses(query).collect { expenses ->
-                    var filtered = expenses
 
-                    // Apply filters
-                    if (_listState.value.filterStatus != null) {
-                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
-                    }
-
-                    if (_listState.value.filterType != null) {
-                        filtered = filtered.filter { it.type == _listState.value.filterType }
-                    }
-
-                    if (_listState.value.selectedProjectId != null) {
-                        filtered = filtered.filter { it.projectId == _listState.value.selectedProjectId }
-                    }
-
-                    val total = filtered.sumOf { it.amount }
-
-                    _listState.value = _listState.value.copy(
-                        expenses = filtered,
-                        totalAmount = total,
-                        error = null
-                    )
-                }
-            } catch (e: Exception) {
-                _listState.value = _listState.value.copy(
-                    error = e.message ?: "Search failed"
-                )
-            }
-        }
-    }
 
     fun filterByStatus(status: String?) {
         _listState.value = _listState.value.copy(filterStatus = status)
@@ -405,10 +351,12 @@ class ExpenseViewModel(
         _formState.value = _formState.value.copy(projectId = projectId)
         loadExpenses(projectId)
     }
+
+    fun resetFilters() {
+        _listState.value = _listState.value.copy(
+            filterStatus = null,
+            filterType = null,
+             selectedProjectId = null
+        )
+    }
 }
-//fun setProjectId(projectId: String) {
-//    _listState.value = _listState.value.copy(selectedProjectId = projectId)
-//    // Ensure the form for NEW expenses is also tied to this project
-//    _formState.value = _formState.value.copy(projectId = projectId)
-//    loadExpenses(projectId)
-//}

@@ -66,6 +66,8 @@ fun AppNavigation(
             CustomBottomNavigation(
                 currentRoute = currentRoute,
                 onHomeClick = {
+                    expenseViewModel.resetFilters()
+                    projectViewModel.resetFilters()
                     navController.navigate(Routes.DASHBOARD) {
                         popUpTo(Routes.DASHBOARD) { inclusive = true }
                     }

@@ -54,7 +54,8 @@ fun DashboardContent(
                 "Completed" to statusCounts.completed,
                 "On Hold" to statusCounts.onHold
             ),
-            showNotification = true
+            showNotification = true,
+            showSearchBar = true
         )
 
         // Delegate rendering projects to ProjectListScreen!

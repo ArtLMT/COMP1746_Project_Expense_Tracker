@@ -29,13 +29,14 @@ import androidx.compose.ui.unit.sp
 fun HeaderSection(
     title: String,
     subtitle: String = "",
-    searchQuery: String,
-    onSearchChange: (String) -> Unit,
+    searchQuery: String = "",
+    onSearchChange: (String) -> Unit = {},
     searchPlaceholder: String = "Search...",
     selectedTab: Int,
     onTabSelected: (Int) -> Unit,
     statusFilters: List<Pair<String, Int>>,
     onBackClick: (() -> Unit)? = null,
+    showSearchBar: Boolean = true,
     showNotification: Boolean = false
 ) {
     Column(
@@ -113,50 +114,54 @@ fun HeaderSection(
         }
 
         // Search Bar (inlined)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(48.dp)
-                .background(
-                    color = MaterialTheme.colorScheme.surface,
-                    shape = RoundedCornerShape(12.dp)
-                )
-                .padding(horizontal = 16.dp),
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Icon(
-                imageVector = Icons.Outlined.Search,
-                contentDescription = "Search",
+        if (showSearchBar) {
+            Row(
                 modifier = Modifier
-                    .size(20.dp)
-                    .padding(end = 8.dp),
-                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-            )
+                    .fillMaxWidth()
+                    .height(48.dp)
+                    .background(
+                        color = MaterialTheme.colorScheme.surface,
+                        shape = RoundedCornerShape(12.dp)
+                    )
+                    .padding(horizontal = 16.dp),
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Icon(
+                    imageVector = Icons.Outlined.Search,
+                    contentDescription = "Search",
+                    modifier = Modifier
+                        .size(20.dp)
+                        .padding(end = 8.dp),
+                    tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                )
 
-            BasicTextField(
-                value = searchQuery,
-                onValueChange = onSearchChange,
-                modifier = Modifier.weight(1f),
-                textStyle = TextStyle(
-                    fontSize = 16.sp,
-                    color = MaterialTheme.colorScheme.onSurface
-                ),
-                singleLine = true,
-                cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
-                decorationBox = { innerTextField ->
-                    if (searchQuery.isEmpty()) {
-                        Text(
-                            text = searchPlaceholder,
-                            fontSize = 16.sp,
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                        )
+                BasicTextField(
+                    value = searchQuery,
+                    onValueChange = onSearchChange,
+                    modifier = Modifier.weight(1f),
+                    textStyle = TextStyle(
+                        fontSize = 16.sp,
+                        color = MaterialTheme.colorScheme.onSurface
+                    ),
+                    singleLine = true,
+                    cursorBrush = SolidColor(MaterialTheme.colorScheme.primary),
+                    decorationBox = { innerTextField ->
+                        if (searchQuery.isEmpty()) {
+                            Text(
+                                text = searchPlaceholder,
+                                fontSize = 16.sp,
+                                color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        innerTextField()
                     }
-                    innerTextField()
-                }
-            )
+                )
+
+        }
+            Spacer(modifier = Modifier.height(16.dp))
+
         }
 
-        Spacer(modifier = Modifier.height(16.dp))
 
         // Filter Tabs (generic status chips)
         if (statusFilters.isNotEmpty()) {

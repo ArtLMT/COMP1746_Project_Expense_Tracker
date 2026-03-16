@@ -1,9 +1,11 @@
 package com.lmt.expensetracker.ui.screens
 
 import android.annotation.SuppressLint
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -35,6 +37,12 @@ fun ExpenseListScreen(
             viewModel.loadExpenses(projectId)
         } else {
             viewModel.loadExpenses(null) // Load all if no ID
+        }
+    }
+
+    DisposableEffect(Unit) {
+        onDispose {
+            viewModel.resetFilters()
         }
     }
 
@@ -76,10 +84,8 @@ fun ExpenseListScreen(
             // ---- Generic Header: title, search, filter chips ----
             HeaderSection(
                 title = if (projectId != null) "Project Expenses" else "All Expenses",
-                searchQuery = listState.searchQuery,
-                onSearchChange = { viewModel.searchExpenses(it) },
-                searchPlaceholder = "Search expenses...",
                 selectedTab = selectedTab,
+                showSearchBar = false,
                 onTabSelected = { index ->
                     selectedTab = index
                     when (index) {
@@ -92,6 +98,37 @@ fun ExpenseListScreen(
                 statusFilters = statusFilters,
                 onBackClick = if (projectId != null) onNavigateBack else null
             )
+
+            // ---- Expense Type Filters ----
+            LazyRow(
+                modifier = Modifier.fillMaxWidth(),
+                contentPadding = PaddingValues(horizontal = 20.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                // "All" chip
+                item {
+                    FilterChip(
+                        selected = listState.filterType == null,
+                        onClick = { viewModel.filterByType(null) },
+                        label = { Text("All") },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+                items(viewModel.expenseTypes) { type ->
+                    FilterChip(
+                        selected = listState.filterType == type,
+                        onClick = { viewModel.filterByType(type) },
+                        label = { Text(type) },
+                        colors = FilterChipDefaults.filterChipColors(
+                            selectedContainerColor = MaterialTheme.colorScheme.primaryContainer
+                        )
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(8.dp))
 
             // ---- Budget Comparison Card ----
             BudgetComparisonCard(
@@ -109,54 +146,64 @@ fun ExpenseListScreen(
                     .clip(RoundedCornerShape(topStart = 24.dp, topEnd = 24.dp))
                     .background(MaterialTheme.colorScheme.onBackground.copy(alpha = 0.05f))
             ) {
-                when {
-                    listState.isLoading -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Loading expenses...")
+                Crossfade(
+                    targetState = when {
+                        listState.isLoading -> "loading"
+                        listState.error != null -> "error"
+                        listState.expenses.isEmpty() -> "empty"
+                        else -> "content"
+                    },
+                    label = "list_state"
+                ) { state ->
+                    when (state) {
+                        "loading" -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                CircularProgressIndicator()
+                            }
                         }
-                    }
-                    listState.error != null -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("Error: ${listState.error}")
+                        "error" -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("Error: ${listState.error}")
+                            }
                         }
-                    }
-                    listState.expenses.isEmpty() -> {
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .padding(16.dp),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Text("No expenses found")
+                        "empty" -> {
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp),
+                                contentAlignment = Alignment.Center
+                            ) {
+                                Text("No expenses found")
+                            }
                         }
-                    }
-                    else -> {
-                        LazyColumn(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(20.dp),
-                            verticalArrangement = Arrangement.spacedBy(12.dp),
-                            contentPadding = PaddingValues(vertical = 16.dp)
-                        ) {
-                            items(
-                                items = listState.expenses,
-                                key = { it.expenseId }
-                            ) { expense ->
-                                ExpenseCard(
-                                    expense = expense,
-                                    onEdit = { expenseId, project_id -> onNavigateToEditExpense(expenseId, project_id) },
-                                    onDelete = { viewModel.deleteExpense(expense) }
-                                )
+                        "content" -> {
+                            LazyColumn(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(20.dp),
+                                verticalArrangement = Arrangement.spacedBy(12.dp),
+                                contentPadding = PaddingValues(vertical = 16.dp)
+                            ) {
+                                items(
+                                    items = listState.expenses,
+                                    key = { it.expenseId }
+                                ) { expense ->
+                                    ExpenseCard(
+                                        expense = expense,
+                                        onEdit = { expenseId, project_id -> onNavigateToEditExpense(expenseId, project_id) },
+                                        onDelete = { viewModel.deleteExpense(expense) }
+                                    )
+                                }
                             }
                         }
                     }
