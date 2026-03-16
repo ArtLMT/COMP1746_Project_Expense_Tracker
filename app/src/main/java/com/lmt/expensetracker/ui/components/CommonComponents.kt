@@ -1,7 +1,8 @@
 package com.lmt.expensetracker.ui.components
 
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material3.AlertDialog
@@ -57,16 +58,29 @@ fun CustomOutlinedTextField(
 @Composable
 fun ConfirmationDialog(
     title: String,
-    message: String,
+    message: String = "",
     confirmText: String = "Confirm",
     dismissText: String = "Cancel",
     onConfirm: () -> Unit,
-    onDismiss: () -> Unit
+    onDismiss: () -> Unit,
+    messageContent: @Composable (() -> Unit)? = null
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
-        text = { Text(message) },
+        text = {
+            Box(
+                modifier = Modifier
+                    .heightIn(max = 300.dp)
+                    .verticalScroll(rememberScrollState())
+            ) {
+                if (messageContent != null) {
+                    messageContent()
+                } else {
+                    Text(message)
+                }
+            }
+        },
         confirmButton = {
             Button(onClick = onConfirm) {
                 Text(confirmText)

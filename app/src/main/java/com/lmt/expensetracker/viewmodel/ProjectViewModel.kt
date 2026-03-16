@@ -5,9 +5,11 @@ import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.ui.theme.BudgetStatus
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -80,15 +82,16 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
         _isDarkTheme.value = !_isDarkTheme.value
     }
 
+    // Single Source of Truth for status options — consumed by the UI layer
+    val statusOptions: List<String> = listOf(
+        "Active", "Completed", "On Hold"
+    )
+
     init {
         loadProjects()
     }
 
     // ==================== LOGIC HELPERS ====================
-//TODO: Tính toàn bộ Expense rồi so với Budget
-    /**
-     * Chuyển đổi dữ liệu thô từ DB sang dữ liệu đã tính toán cho UI
-     */
     private fun mapToUiModels(projects: List<com.lmt.expensetracker.data.entities.ProjectWithSpent>): List<ProjectCardUiModel> {
         return projects.map { item ->
             val progress = if (item.project.budget > 0) {
@@ -112,70 +115,51 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     // ==================== PROJECT LIST OPERATIONS ====================
 
+    private var loadJob: Job? = null
+
     fun loadProjects() {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _listState.value = _listState.value.copy(isLoading = true)
             try {
                 repository.getAllProjectsWithSpent().collect { projects ->
+                    val query = _listState.value.searchQuery
+                    val currentFilter = _listState.value.filterStatus
+
                     _statusCounts.value = StatusCounts(
                         active = projects.count { it.project.status == "Active" },
                         completed = projects.count { it.project.status == "Completed" },
                         onHold = projects.count { it.project.status == "On Hold" }
                     )
 
-                    val filtered = if (_listState.value.filterStatus != null) {
-                        projects.filter { it.project.status == _listState.value.filterStatus }
+                    var result = if (currentFilter != null) {
+                        projects.filter { it.project.status == currentFilter }
                     } else {
                         projects
                     }
 
-                    val searched = if (_listState.value.searchQuery.isNotEmpty()) {
-                        filtered.filter {
-                            it.project.name.contains(_listState.value.searchQuery, ignoreCase = true) ||
-                                    it.project.description.contains(_listState.value.searchQuery, ignoreCase = true)
+                    if (query.isNotEmpty()) {
+                        result = result.filter {
+                            it.project.name.startsWith(query, ignoreCase = true) ||
+                                    (query.length > 2 && it.project.description.contains(query, ignoreCase = true))
                         }
-                    } else {
-                        filtered
                     }
 
-                    // ViewModel thực hiện tính toán ở đây trước khi đẩy ra UI
                     _listState.value = _listState.value.copy(
-                        projects = mapToUiModels(searched),
+                        projects = mapToUiModels(result),
                         isLoading = false,
                         error = null
                     )
                 }
             } catch (e: Exception) {
-                _listState.value = _listState.value.copy(
-                    isLoading = false,
-                    error = e.message ?: "Unknown error"
-                )
+                _listState.value = _listState.value.copy(isLoading = false, error = e.message)
             }
         }
     }
 
     fun searchProjects(query: String) {
         _listState.value = _listState.value.copy(searchQuery = query)
-        viewModelScope.launch {
-            try {
-                repository.searchProjectsWithSpent(query).collect { projects ->
-                    val filtered = if (_listState.value.filterStatus != null) {
-                        projects.filter { it.project.status == _listState.value.filterStatus }
-                    } else {
-                        projects
-                    }
-
-                    _listState.value = _listState.value.copy(
-                        projects = mapToUiModels(filtered),
-                        error = null
-                    )
-                }
-            } catch (e: Exception) {
-                _listState.value = _listState.value.copy(
-                    error = e.message ?: "Search failed"
-                )
-            }
-        }
+        loadProjects()
     }
 
     fun filterByStatus(status: String?) {
@@ -197,16 +181,18 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onNameChange(name: String) {
+        val sanitized = name.take(500)
         _formState.value = _formState.value.copy(
-            name = name,
-            nameError = if (name.isBlank()) "Project name is required" else null
+            name = sanitized,
+            nameError = if (sanitized.isBlank()) "Project name is required" else null
         )
     }
 
     fun onDescriptionChange(description: String) {
+        val sanitized = description.take(500)
         _formState.value = _formState.value.copy(
-            description = description,
-            descriptionError = if (description.isBlank()) "Description is required" else null
+            description = sanitized,
+            descriptionError = if (sanitized.isBlank()) "Description is required" else null
         )
     }
 
@@ -225,9 +211,10 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onManagerChange(manager: String) {
+        val sanitized = manager.take(500)
         _formState.value = _formState.value.copy(
-            manager = manager,
-            managerError = if (manager.isBlank()) "Manager name is required" else null
+            manager = sanitized,
+            managerError = if (sanitized.isBlank()) "Manager name is required" else null
         )
     }
 
@@ -248,11 +235,11 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     }
 
     fun onSpecialRequirementsChange(special: String) {
-        _formState.value = _formState.value.copy(specialRequirements = special)
+        _formState.value = _formState.value.copy(specialRequirements = special.take(500))
     }
 
     fun onClientInfoChange(info: String) {
-        _formState.value = _formState.value.copy(clientDepartmentInfo = info)
+        _formState.value = _formState.value.copy(clientDepartmentInfo = info.take(500))
     }
 
     private fun validateForm(): Boolean {
@@ -294,7 +281,6 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
                 else repository.insertProject(project)
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
-                resetForm()
                 loadProjects()
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(error = "Failed to save project: ${e.message}")
@@ -306,22 +292,21 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun loadProjectForEdit(projectId: String) {
         viewModelScope.launch {
-            repository.getProjectById(projectId).collect { project ->
-                project?.let {
-                    _formState.value = ProjectFormState(
-                        projectId = it.projectId,
-                        name = it.name,
-                        description = it.description,
-                        startDate = it.startDate,
-                        endDate = it.endDate,
-                        manager = it.manager,
-                        status = it.status,
-                        budget = it.budget.toString(),
-                        specialRequirements = it.specialRequirements,
-                        clientDepartmentInfo = it.clientDepartmentInfo,
-                        isEditMode = true
-                    )
-                }
+            val project = repository.getProjectById(projectId).firstOrNull()
+            project?.let {
+                _formState.value = ProjectFormState(
+                    projectId = it.projectId,
+                    name = it.name,
+                    description = it.description,
+                    startDate = it.startDate,
+                    endDate = it.endDate,
+                    manager = it.manager,
+                    status = it.status,
+                    budget = it.budget.toString(),
+                    specialRequirements = it.specialRequirements,
+                    clientDepartmentInfo = it.clientDepartmentInfo,
+                    isEditMode = true
+                )
             }
         }
     }
@@ -329,4 +314,12 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     fun dismissConfirmDialog() { _showConfirmDialog.value = false }
     fun resetForm() { _formState.value = ProjectFormState(); _saveSuccess.value = false }
     fun resetSaveSuccess() { _saveSuccess.value = false }
+
+    fun resetFilters() {
+        _listState.value = _listState.value.copy(
+            searchQuery = "",
+            filterStatus = null
+        )
+        loadProjects()
+    }
 }

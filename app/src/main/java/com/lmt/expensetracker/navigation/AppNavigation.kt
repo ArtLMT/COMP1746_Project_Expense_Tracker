@@ -66,6 +66,8 @@ fun AppNavigation(
             CustomBottomNavigation(
                 currentRoute = currentRoute,
                 onHomeClick = {
+                    expenseViewModel.resetFilters()
+                    projectViewModel.resetFilters()
                     navController.navigate(Routes.DASHBOARD) {
                         popUpTo(Routes.DASHBOARD) { inclusive = true }
                     }
@@ -153,10 +155,10 @@ fun AppNavigation(
                         expenseViewModel.setEditMode(false)
                         navController.navigate(Routes.expenseFormForProject(projectId))
                     },
-                    onNavigateToEditExpense = { expenseId ->
+                    onNavigateToEditExpense = { expenseId, expenseProjectId ->
                         expenseViewModel.loadExpenseForEdit(expenseId)
                         expenseViewModel.setEditMode(true)
-                        navController.navigate(Routes.expenseFormForProject(projectId))
+                        navController.navigate(Routes.expenseFormForProject(expenseProjectId))
                     },
                     onNavigateBack = {
                         navController.popBackStack()

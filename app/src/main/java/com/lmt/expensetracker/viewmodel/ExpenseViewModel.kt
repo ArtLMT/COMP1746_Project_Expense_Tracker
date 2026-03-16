@@ -4,10 +4,13 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.repository.ExpenseRepository
+import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.utils.DateUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.firstOrNull
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -32,18 +35,28 @@ data class ExpenseFormState(
     val paymentMethodError: String? = null
 )
 
+data class ExpenseStatusCounts(
+    val pending: Int = 0,
+    val paid: Int = 0,
+    val reimbursed: Int = 0
+)
+
 data class ExpenseListState(
     val expenses: List<ExpenseEntity> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
-    val searchQuery: String = "",
     val filterStatus: String? = null,
     val filterType: String? = null,
     val selectedProjectId: String? = null,
-    val totalAmount: Double = 0.0
+    val totalAmount: Double = 0.0,
+    val projectBudget: Double? = null,
+    val statusCounts: ExpenseStatusCounts = ExpenseStatusCounts()
 )
 
-class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() {
+class ExpenseViewModel(
+    private val repository: ExpenseRepository,
+    private val projectRepository: ProjectRepository
+) : ViewModel() {
 
     private val _formState = MutableStateFlow(ExpenseFormState())
     val formState: StateFlow<ExpenseFormState> = _formState.asStateFlow()
@@ -82,16 +95,22 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         "Reimbursed"
     )
 
-    init {
-        loadExpenses()
-    }
+    val currencies: List<String> = listOf("USD", "EUR", "GBP", "JPY", "VND")
+
 
     // ==================== EXPENSE LIST OPERATIONS ====================
+    private var loadJob: Job? = null
 
     fun loadExpenses(projectId: String? = null) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _listState.value = _listState.value.copy(isLoading = true)
             try {
+                // Load project budget if projectId is provided
+                val budget = if (projectId != null) {
+                    projectRepository.getProjectById(projectId).firstOrNull()?.budget
+                } else null
+
                 val flow = if (projectId != null) {
                     repository.getExpensesByProjectId(projectId)
                 } else {
@@ -99,25 +118,18 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                 }
 
                 flow.collect { expenses ->
-                    var filtered = expenses
+                    // Compute status counts from unfiltered expenses
+                    val counts = ExpenseStatusCounts(
+                        pending = expenses.count { it.status == "Pending" },
+                        paid = expenses.count { it.status == "Paid" },
+                        reimbursed = expenses.count { it.status == "Reimbursed" }
+                    )
 
-                    // Apply status filter
-                    if (_listState.value.filterStatus != null) {
-                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
-                    }
-
-                    // Apply type filter
-                    if (_listState.value.filterType != null) {
-                        filtered = filtered.filter { it.type == _listState.value.filterType }
-                    }
-
-                    // Apply search query
-                    if (_listState.value.searchQuery.isNotEmpty()) {
-                        filtered = filtered.filter {
-                            it.description.contains(_listState.value.searchQuery, ignoreCase = true) ||
-                                    it.claimant.contains(_listState.value.searchQuery, ignoreCase = true) ||
-                                    it.location.contains(_listState.value.searchQuery, ignoreCase = true)
-                        }
+                    val currentState = _listState.value
+                    var filtered = expenses.filter { expense ->
+                        val matchesStatus = if (currentState.filterStatus != null) expense.status == currentState.filterStatus else true
+                        val matchesType = if (currentState.filterType != null) expense.type == currentState.filterType else true
+                        matchesStatus && matchesType
                     }
 
                     val total = filtered.sumOf { it.amount }
@@ -127,7 +139,9 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                         isLoading = false,
                         error = null,
                         selectedProjectId = projectId,
-                        totalAmount = total
+                        totalAmount = total,
+                        projectBudget = budget,
+                        statusCounts = counts
                     )
                 }
             } catch (e: Exception) {
@@ -139,41 +153,7 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         }
     }
 
-    fun searchExpenses(query: String) {
-        _listState.value = _listState.value.copy(searchQuery = query)
-        viewModelScope.launch {
-            try {
-                repository.searchExpenses(query).collect { expenses ->
-                    var filtered = expenses
 
-                    // Apply filters
-                    if (_listState.value.filterStatus != null) {
-                        filtered = filtered.filter { it.status == _listState.value.filterStatus }
-                    }
-
-                    if (_listState.value.filterType != null) {
-                        filtered = filtered.filter { it.type == _listState.value.filterType }
-                    }
-
-                    if (_listState.value.selectedProjectId != null) {
-                        filtered = filtered.filter { it.projectId == _listState.value.selectedProjectId }
-                    }
-
-                    val total = filtered.sumOf { it.amount }
-
-                    _listState.value = _listState.value.copy(
-                        expenses = filtered,
-                        totalAmount = total,
-                        error = null
-                    )
-                }
-            } catch (e: Exception) {
-                _listState.value = _listState.value.copy(
-                    error = e.message ?: "Search failed"
-                )
-            }
-        }
-    }
 
     fun filterByStatus(status: String?) {
         _listState.value = _listState.value.copy(filterStatus = status)
@@ -203,7 +183,7 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     fun onDateChange(date: String) {
         _formState.value = _formState.value.copy(
             date = date,
-            dateError = DateUtils.getDateValidationError(date)
+            dateError = if (date.isBlank()) "Date is required" else null
         )
     }
 
@@ -238,9 +218,10 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     }
 
     fun onClaimantChange(claimant: String) {
+        val sanitized = claimant.take(500)
         _formState.value = _formState.value.copy(
-            claimant = claimant,
-            claimantError = if (claimant.isBlank()) "Claimant name is required" else null
+            claimant = sanitized,
+            claimantError = if (sanitized.isBlank()) "Claimant name is required" else null
         )
     }
 
@@ -249,11 +230,11 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     }
 
     fun onDescriptionChange(description: String) {
-        _formState.value = _formState.value.copy(description = description)
+        _formState.value = _formState.value.copy(description = description.take(500))
     }
 
     fun onLocationChange(location: String) {
-        _formState.value = _formState.value.copy(location = location)
+        _formState.value = _formState.value.copy(location = location.take(500))
     }
 
     // Validate form
@@ -261,9 +242,8 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         val state = _formState.value
         var isValid = true
 
-        val dateError = DateUtils.getDateValidationError(state.date)
-        if (dateError != null) {
-            _formState.value = _formState.value.copy(dateError = dateError)
+        if (state.date.isBlank()) {
+            _formState.value = _formState.value.copy(dateError = "Date is required")
             isValid = false
         }
 
@@ -310,7 +290,6 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
                 }
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
-                resetForm()
                 loadExpenses(_listState.value.selectedProjectId)
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(
@@ -327,23 +306,22 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
     fun loadExpenseForEdit(expenseId: String) {
         viewModelScope.launch {
             try {
-                repository.getExpenseById(expenseId).collect { expense ->
-                    if (expense != null) {
-                        _formState.value = ExpenseFormState(
-                            expenseId = expense.expenseId,
-                            projectId = expense.projectId,
-                            date = expense.date,
-                            amount = expense.amount.toString(),
-                            currency = expense.currency,
-                            type = expense.type,
-                            paymentMethod = expense.paymentMethod,
-                            claimant = expense.claimant,
-                            status = expense.status,
-                            description = expense.description,
-                            location = expense.location,
-                            isEditMode = true
-                        )
-                    }
+                val expense = repository.getExpenseById(expenseId).firstOrNull()
+                if (expense != null) {
+                    _formState.value = ExpenseFormState(
+                        expenseId = expense.expenseId,
+                        projectId = expense.projectId,
+                        date = expense.date,
+                        amount = expense.amount.toString(),
+                        currency = expense.currency,
+                        type = expense.type,
+                        paymentMethod = expense.paymentMethod,
+                        claimant = expense.claimant,
+                        status = expense.status,
+                        description = expense.description,
+                        location = expense.location,
+                        isEditMode = true
+                    )
                 }
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(
@@ -372,5 +350,13 @@ class ExpenseViewModel(private val repository: ExpenseRepository) : ViewModel() 
         _listState.value = _listState.value.copy(selectedProjectId = projectId)
         _formState.value = _formState.value.copy(projectId = projectId)
         loadExpenses(projectId)
+    }
+
+    fun resetFilters() {
+        _listState.value = _listState.value.copy(
+            filterStatus = null,
+            filterType = null,
+             selectedProjectId = null
+        )
     }
 }

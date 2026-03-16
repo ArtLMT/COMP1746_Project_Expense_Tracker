@@ -45,7 +45,7 @@ class MainActivity : ComponentActivity() {
             object : ViewModelProvider.Factory {
                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                     @Suppress("UNCHECKED_CAST")
-                    return ExpenseViewModel(expenseRepository) as T
+                    return ExpenseViewModel(expenseRepository, projectRepository) as T
                 }
             }
         )[ExpenseViewModel::class.java]
