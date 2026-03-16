@@ -29,6 +29,15 @@ fun ExpenseListScreen(
     onNavigateToEditExpense: (String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
+    // This triggers every time the projectId changes or the screen is first opened
+    LaunchedEffect(projectId) {
+        if (projectId != null) {
+            viewModel.loadExpenses(projectId)
+        } else {
+            viewModel.loadExpenses(null) // Load all if no ID
+        }
+    }
+
     val listState by viewModel.listState.collectAsStateWithLifecycle()
 
     // Local UI state for the header tabs

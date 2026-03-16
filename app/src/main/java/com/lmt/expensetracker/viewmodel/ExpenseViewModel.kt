@@ -6,6 +6,7 @@ import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.repository.ExpenseRepository
 import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.utils.DateUtils
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -99,13 +100,16 @@ class ExpenseViewModel(
     val currencies: List<String> = listOf("USD", "EUR", "GBP", "JPY", "VND")
 
     init {
-        loadExpenses()
+//        loadExpenses()
+    //TODO: Without paramenter make this confuse which project to open, result in false screen's data
     }
 
     // ==================== EXPENSE LIST OPERATIONS ====================
+    private var loadJob: Job? = null
 
     fun loadExpenses(projectId: String? = null) {
-        viewModelScope.launch {
+        loadJob?.cancel()
+        loadJob = viewModelScope.launch {
             _listState.value = _listState.value.copy(isLoading = true)
             try {
                 // Load project budget if projectId is provided
@@ -402,3 +406,9 @@ class ExpenseViewModel(
         loadExpenses(projectId)
     }
 }
+//fun setProjectId(projectId: String) {
+//    _listState.value = _listState.value.copy(selectedProjectId = projectId)
+//    // Ensure the form for NEW expenses is also tied to this project
+//    _formState.value = _formState.value.copy(projectId = projectId)
+//    loadExpenses(projectId)
+//}
