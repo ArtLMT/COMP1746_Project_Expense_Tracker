@@ -153,10 +153,10 @@ fun AppNavigation(
                         expenseViewModel.setEditMode(false)
                         navController.navigate(Routes.expenseFormForProject(projectId))
                     },
-                    onNavigateToEditExpense = { expenseId ->
+                    onNavigateToEditExpense = { expenseId, expenseProjectId ->
                         expenseViewModel.loadExpenseForEdit(expenseId)
                         expenseViewModel.setEditMode(true)
-                        navController.navigate(Routes.expenseFormForProject(projectId))
+                        navController.navigate(Routes.expenseFormForProject(expenseProjectId))
                     },
                     onNavigateBack = {
                         navController.popBackStack()

@@ -12,6 +12,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -48,7 +49,7 @@ fun getExpenseTypeIcon(type: String): Int {
 @Composable
 fun ExpenseCard(
     expense: ExpenseEntity,
-    onEdit: () -> Unit,
+    onEdit: (String, String) -> Unit,
     onDelete: () -> Unit
 ) {
     var menuExpanded by remember { mutableStateOf(false) }
@@ -193,10 +194,10 @@ fun ExpenseCard(
                         onClick = { menuExpanded = !menuExpanded },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Text(
-                            "⋮",
-                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f),
-                            fontSize = 16.sp
+                        Icon(
+                            imageVector = Icons.Default.MoreVert,
+                            contentDescription = "More Options",
+                            tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
                         )
                     }
                     DropdownMenu(
@@ -207,7 +208,7 @@ fun ExpenseCard(
                             text = { Text("Edit") },
                             onClick = {
                                 menuExpanded = false
-                                onEdit()
+                                onEdit(expense.expenseId, expense.projectId)
                             },
                             leadingIcon = {
                                 Icon(Icons.Default.Edit, contentDescription = "Edit")

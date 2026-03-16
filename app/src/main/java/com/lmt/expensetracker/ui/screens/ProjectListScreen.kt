@@ -79,7 +79,7 @@ fun ProjectListScreen(
                     ) { uiModel ->
                         ProjectCard(
                             uiModel = uiModel,
-                            onEdit = { onNavigateToEditProject(uiModel.project.projectId) },
+                            onEdit = onNavigateToEditProject,
                             onDelete = { viewModel.deleteProject(uiModel.project) },
                             onCardClick = { onNavigateToProjectDetail(uiModel.project.projectId) }
                         )

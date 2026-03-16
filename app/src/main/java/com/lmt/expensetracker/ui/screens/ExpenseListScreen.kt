@@ -26,7 +26,7 @@ fun ExpenseListScreen(
     viewModel: ExpenseViewModel,
     projectId: String?,
     onNavigateToCreateExpense: () -> Unit,
-    onNavigateToEditExpense: (String) -> Unit,
+    onNavigateToEditExpense: (String, String) -> Unit,
     onNavigateBack: () -> Unit
 ) {
     // This triggers every time the projectId changes or the screen is first opened
@@ -154,7 +154,7 @@ fun ExpenseListScreen(
                             ) { expense ->
                                 ExpenseCard(
                                     expense = expense,
-                                    onEdit = { onNavigateToEditExpense(expense.expenseId) },
+                                    onEdit = { expenseId, project_id -> onNavigateToEditExpense(expenseId, project_id) },
                                     onDelete = { viewModel.deleteExpense(expense) }
                                 )
                             }

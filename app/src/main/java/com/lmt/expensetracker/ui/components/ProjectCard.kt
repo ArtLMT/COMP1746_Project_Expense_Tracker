@@ -10,6 +10,9 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.MoreVert
 import androidx.compose.material.icons.outlined.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -47,13 +50,16 @@ import java.time.format.DateTimeParseException
 @Composable
 fun ProjectCard(
     uiModel: ProjectCardUiModel, // ĐÃ SỬA: Nhận UiModel thay vì ProjectWithSpent
-    onEdit: () -> Unit,
+    onEdit: (String) -> Unit,
     onDelete: () -> Unit,
     onCardClick: () -> Unit
 ) {
     val project = uiModel.project
 
     val status = uiModel.financialStatus
+
+    var menuExpanded by remember { mutableStateOf(false) }
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     val interactionSource = remember { MutableInteractionSource() }
     val isPressed by interactionSource.collectIsPressedAsState()
@@ -99,20 +105,64 @@ fun ProjectCard(
                         .weight(1f)
                         .padding(end = 8.dp)
                 )
-                Box(
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(16.dp),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Box(
                         modifier = Modifier
                             .background(
                                 color = status.backgroundColor,
                                 shape = RoundedCornerShape(4.dp)
                             )
                             .padding(horizontal = 6.dp, vertical = 2.dp)
+                    ) {
+                        Text(
+                            text = status.displayName,
+                            fontSize = 10.sp,
+                            fontWeight = FontWeight.Bold,
+                            color = status.textColor
+                        )
+                    }
+
+                    // Actions menu
+                    Box {
+                        IconButton(
+                            onClick = { menuExpanded = !menuExpanded },
+                            modifier = Modifier.size(24.dp)
                         ) {
-                    Text(
-                        text = status.displayName,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = status.textColor
-                    )
+                            Icon(
+                                imageVector = Icons.Default.MoreVert,
+                                contentDescription = "More Options",
+                                tint = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = menuExpanded,
+                            onDismissRequest = { menuExpanded = false }
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text("Edit") },
+                                onClick = {
+                                    menuExpanded = false
+                                    onEdit(project.projectId)
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Edit, contentDescription = "Edit")
+                                }
+                            )
+                            DropdownMenuItem(
+                                text = { Text("Delete") },
+                                onClick = {
+                                    menuExpanded = false
+                                    showDeleteDialog = true
+                                },
+                                leadingIcon = {
+                                    Icon(Icons.Default.Delete, contentDescription = "Delete")
+                                }
+                            )
+                        }
+                    }
                 }
             }
 
@@ -212,5 +262,20 @@ fun ProjectCard(
                 )
             }
         }
+    }
+
+    // Delete confirmation dialog
+    if (showDeleteDialog) {
+        ConfirmationDialog(
+            title = "Delete Project",
+            message = "Are you sure you want to delete this project? This action cannot be undone.",
+            confirmText = "Delete",
+            dismissText = "Cancel",
+            onConfirm = {
+                onDelete()
+                showDeleteDialog = false
+            },
+            onDismiss = { showDeleteDialog = false }
+        )
     }
 }
