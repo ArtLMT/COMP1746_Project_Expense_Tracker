@@ -62,6 +62,10 @@ interface AppDao {
     """)
     fun getProjectsByDateRange(startDate: String, endDate: String): Flow<List<ProjectEntity>>
 
+    // Static fetch for Firebase sync (returns a one-shot List, not a Flow)
+    @Query("SELECT * FROM projects")
+    suspend fun getAllProjectsStatic(): List<ProjectEntity>
+
     // ==================== PROJECT WITH SPENT AGGREGATION ====================
 
     @Query("""
@@ -149,6 +153,10 @@ interface AppDao {
         ORDER BY date DESC
     """)
     fun getExpensesByProjectAndStatus(projectId: String, status: String): Flow<List<ExpenseEntity>>
+
+    // Static fetch for Firebase sync (returns a one-shot List, not a Flow)
+    @Query("SELECT * FROM expenses")
+    suspend fun getAllExpensesStatic(): List<ExpenseEntity>
 
     // ==================== AGGREGATION QUERIES ====================
 

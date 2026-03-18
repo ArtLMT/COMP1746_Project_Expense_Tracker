@@ -1,29 +1,55 @@
 package com.lmt.expensetracker.data.repository
 
+import android.content.Context
 import com.lmt.expensetracker.data.dao.AppDao
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import kotlinx.coroutines.flow.Flow
 
-class ExpenseRepository(private val dao: AppDao) {
+/**
+ * Repository for managing [ExpenseEntity] data with local Room persistence
+ * and Firebase cloud synchronization via [ProjectRepository.syncAllToCloud].
+ *
+ * @param dao               The Room DAO for local database operations.
+ * @param projectRepository Used to trigger cloud sync after local mutations.
+ */
+class ExpenseRepository(
+    private val dao: AppDao,
+    private val projectRepository: ProjectRepository
+) {
 
-    // Insert a new expense
-    suspend fun insertExpense(expense: ExpenseEntity) {
+    // ==================== MUTATING OPERATIONS (with auto-sync) ====================
+
+    /**
+     * Inserts an expense locally and triggers a cloud sync.
+     * Local insert always succeeds; sync failure is reported via [Result].
+     */
+    suspend fun insertExpense(expense: ExpenseEntity, context: Context): Result<Unit> {
         dao.insertExpense(expense)
+        return projectRepository.syncAllToCloud(context)
     }
 
-    // Update existing expense
-    suspend fun updateExpense(expense: ExpenseEntity) {
+    /**
+     * Updates an expense locally and triggers a cloud sync.
+     */
+    suspend fun updateExpense(expense: ExpenseEntity, context: Context): Result<Unit> {
         dao.updateExpense(expense)
+        return projectRepository.syncAllToCloud(context)
     }
 
-    // Delete expense
-    suspend fun deleteExpense(expense: ExpenseEntity) {
+    /**
+     * Deletes an expense locally and triggers a cloud sync.
+     */
+    suspend fun deleteExpense(expense: ExpenseEntity, context: Context): Result<Unit> {
         dao.deleteExpense(expense)
+        return projectRepository.syncAllToCloud(context)
     }
 
-    // Delete expense by ID
-    suspend fun deleteExpenseById(expenseId: String) {
+    /**
+     * Deletes an expense by ID locally and triggers a cloud sync.
+     */
+    suspend fun deleteExpenseById(expenseId: String, context: Context): Result<Unit> {
         dao.deleteExpenseById(expenseId)
+        return projectRepository.syncAllToCloud(context)
     }
 
     // Get all expenses

@@ -24,7 +24,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
-import com.lmt.expensetracker.ui.components.SuccessDialog
 import com.lmt.expensetracker.viewmodel.ExpenseViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -451,16 +450,12 @@ fun ExpenseFormScreen(
         )
     }
 
-    // ── Success Dialog ──
-    if (saveSuccess) {
-        SuccessDialog(
-            title = "Expense Saved",
-            message = "Your expense has been saved successfully!",
-            onDismiss = {
-                viewModel.resetSaveSuccess()
-                onSaveSuccess()
-            }
-        )
+    // ── Navigate back on save success (reactive, no dialog needed) ──
+    LaunchedEffect(saveSuccess) {
+        if (saveSuccess) {
+            viewModel.resetSaveSuccess()
+            onSaveSuccess()
+        }
     }
 }
 

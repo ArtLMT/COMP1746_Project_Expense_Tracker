@@ -1,6 +1,7 @@
 package com.lmt.expensetracker.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.repository.ProjectRepository
@@ -58,7 +59,10 @@ data class StatusCounts(
 
 // ==================== VIEWMODEL ====================
 
-class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() {
+class ProjectViewModel(
+    application: Application,
+    private val repository: ProjectRepository
+) : AndroidViewModel(application) {
 
     private val _formState = MutableStateFlow(ProjectFormState())
     val formState: StateFlow<ProjectFormState> = _formState.asStateFlow()
@@ -171,12 +175,13 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun deleteProject(projectEntity: ProjectEntity) {
         viewModelScope.launch {
-            try {
-                repository.deleteProject(projectEntity)
-                loadProjects()
-            } catch (e: Exception) {
-                _listState.value = _listState.value.copy(error = "Failed to delete project")
+            val result = repository.deleteProject(projectEntity, getApplication<Application>().applicationContext)
+            result.onFailure { e ->
+                _listState.value = _listState.value.copy(
+                    error = "Project deleted locally, but cloud sync failed: ${e.message}"
+                )
             }
+            loadProjects()
         }
     }
 
@@ -263,6 +268,7 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun saveProject() {
         val state = _formState.value
+        val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
                 val project = ProjectEntity(
@@ -277,8 +283,16 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
                     specialRequirements = state.specialRequirements,
                     clientDepartmentInfo = state.clientDepartmentInfo
                 )
-                if (state.isEditMode) repository.updateProject(project)
-                else repository.insertProject(project)
+                val result = if (state.isEditMode) {
+                    repository.updateProject(project, context)
+                } else {
+                    repository.insertProject(project, context)
+                }
+                result.onFailure { e ->
+                    _listState.value = _listState.value.copy(
+                        error = "Saved locally, but cloud sync failed: ${e.message}"
+                    )
+                }
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
                 loadProjects()
