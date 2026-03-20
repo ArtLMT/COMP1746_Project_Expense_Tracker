@@ -2,6 +2,9 @@ plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
     alias(libs.plugins.ksp) // Plugin này dùng để xử lý Annotation
+    // Add the Google services Gradle plugin
+    id("com.google.gms.google-services")
+
 }
 
 android {
@@ -57,6 +60,12 @@ dependencies {
     implementation(libs.androidx.room.ktx)
     implementation(libs.androidx.material3)
     ksp(libs.androidx.room.compiler)
+
+// Import the Firebase BoM
+    implementation(platform(libs.firebase.bom))
+    implementation(libs.firebase.firestore)   // When using the BoM, don't specify versions in Firebase dependencies
+    implementation("com.google.firebase:firebase-analytics")
+
 
     // Coroutines
     implementation(libs.kotlinx.coroutines.android)

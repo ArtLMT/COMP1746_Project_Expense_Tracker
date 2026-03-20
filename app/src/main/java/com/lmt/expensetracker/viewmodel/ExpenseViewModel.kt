@@ -1,6 +1,7 @@
 package com.lmt.expensetracker.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.repository.ExpenseRepository
@@ -54,9 +55,10 @@ data class ExpenseListState(
 )
 
 class ExpenseViewModel(
+    application: Application,
     private val repository: ExpenseRepository,
     private val projectRepository: ProjectRepository
-) : ViewModel() {
+) : AndroidViewModel(application) {
 
     private val _formState = MutableStateFlow(ExpenseFormState())
     val formState: StateFlow<ExpenseFormState> = _formState.asStateFlow()
@@ -166,9 +168,15 @@ class ExpenseViewModel(
     }
 
     fun deleteExpense(expense: ExpenseEntity) {
+        val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
-                repository.deleteExpense(expense)
+                val result = repository.deleteExpense(expense, context)
+                result.onFailure { e ->
+                    _listState.value = _listState.value.copy(
+                        error = "Deleted locally, but cloud sync failed: ${e.message}"
+                    )
+                }
                 loadExpenses(_listState.value.selectedProjectId)
             } catch (e: Exception) {
                 _listState.value = _listState.value.copy(
@@ -268,6 +276,7 @@ class ExpenseViewModel(
 
     fun saveExpense() {
         val state = _formState.value
+        val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
                 val expense = ExpenseEntity(
@@ -283,10 +292,15 @@ class ExpenseViewModel(
                     description = state.description,
                     location = state.location
                 )
-                if (state.isEditMode) {
-                    repository.updateExpense(expense)
+                val result = if (state.isEditMode) {
+                    repository.updateExpense(expense, context)
                 } else {
-                    repository.insertExpense(expense)
+                    repository.insertExpense(expense, context)
+                }
+                result.onFailure { e ->
+                    _listState.value = _listState.value.copy(
+                        error = "Saved locally, but cloud sync failed: ${e.message}"
+                    )
                 }
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true

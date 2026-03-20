@@ -1,6 +1,7 @@
 package com.lmt.expensetracker.viewmodel
 
-import androidx.lifecycle.ViewModel
+import android.app.Application
+import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.repository.ProjectRepository
@@ -56,9 +57,18 @@ data class StatusCounts(
     val onHold: Int = 0
 )
 
+data class SyncUiState(
+    val isSyncing: Boolean = false,
+    val message: String? = null,
+    val isError: Boolean = false
+)
+
 // ==================== VIEWMODEL ====================
 
-class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() {
+class ProjectViewModel(
+    application: Application,
+    private val repository: ProjectRepository
+) : AndroidViewModel(application) {
 
     private val _formState = MutableStateFlow(ProjectFormState())
     val formState: StateFlow<ProjectFormState> = _formState.asStateFlow()
@@ -78,8 +88,42 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    private val _syncUiState = MutableStateFlow(SyncUiState())
+    val syncUiState: StateFlow<SyncUiState> = _syncUiState.asStateFlow()
+
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
+    }
+
+    fun clearSyncMessage() {
+        _syncUiState.value = _syncUiState.value.copy(message = null, isError = false)
+    }
+
+    fun syncNow() {
+        if (_syncUiState.value.isSyncing) return
+
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch {
+            _syncUiState.value = SyncUiState(isSyncing = true)
+
+            val result = repository.syncAllToCloud(context)
+            _syncUiState.value = result.fold(
+                onSuccess = {
+                    SyncUiState(
+                        isSyncing = false,
+                        message = "Sync completed successfully.",
+                        isError = false
+                    )
+                },
+                onFailure = { error ->
+                    SyncUiState(
+                        isSyncing = false,
+                        message = "Sync failed: ${error.message ?: "Unknown error"}",
+                        isError = true
+                    )
+                }
+            )
+        }
     }
 
     // Single Source of Truth for status options — consumed by the UI layer
@@ -171,12 +215,13 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun deleteProject(projectEntity: ProjectEntity) {
         viewModelScope.launch {
-            try {
-                repository.deleteProject(projectEntity)
-                loadProjects()
-            } catch (e: Exception) {
-                _listState.value = _listState.value.copy(error = "Failed to delete project")
+            val result = repository.deleteProject(projectEntity, getApplication<Application>().applicationContext)
+            result.onFailure { e ->
+                _listState.value = _listState.value.copy(
+                    error = "Project deleted locally, but cloud sync failed: ${e.message}"
+                )
             }
+            loadProjects()
         }
     }
 
@@ -263,6 +308,7 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
 
     fun saveProject() {
         val state = _formState.value
+        val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
                 val project = ProjectEntity(
@@ -277,8 +323,16 @@ class ProjectViewModel(private val repository: ProjectRepository) : ViewModel() 
                     specialRequirements = state.specialRequirements,
                     clientDepartmentInfo = state.clientDepartmentInfo
                 )
-                if (state.isEditMode) repository.updateProject(project)
-                else repository.insertProject(project)
+                val result = if (state.isEditMode) {
+                    repository.updateProject(project, context)
+                } else {
+                    repository.insertProject(project, context)
+                }
+                result.onFailure { e ->
+                    _listState.value = _listState.value.copy(
+                        error = "Saved locally, but cloud sync failed: ${e.message}"
+                    )
+                }
                 _showConfirmDialog.value = false
                 _saveSuccess.value = true
                 loadProjects()

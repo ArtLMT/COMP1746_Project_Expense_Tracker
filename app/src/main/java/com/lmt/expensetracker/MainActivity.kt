@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.lmt.expensetracker.data.database.AppDatabase
+import com.lmt.expensetracker.data.remote.FirestoreService
 import com.lmt.expensetracker.data.repository.ExpenseRepository
 import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.navigation.AppNavigation
@@ -26,8 +27,9 @@ class MainActivity : ComponentActivity() {
         database = AppDatabase.getDatabase(this)
 
         // Create repositories
-        val projectRepository = ProjectRepository(database.appDao())
-        val expenseRepository = ExpenseRepository(database.appDao())
+        val firestoreService = FirestoreService()
+        val projectRepository = ProjectRepository(database.appDao(), firestoreService)
+        val expenseRepository = ExpenseRepository(database.appDao(), projectRepository)
 
         // Create ViewModels via factory (DI entry-point — easily replaced with Hilt later)
         val projectViewModel = ViewModelProvider(
@@ -35,7 +37,7 @@ class MainActivity : ComponentActivity() {
             object : ViewModelProvider.Factory {
                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                     @Suppress("UNCHECKED_CAST")
-                    return ProjectViewModel(projectRepository) as T
+                    return ProjectViewModel(application, projectRepository) as T
                 }
             }
         )[ProjectViewModel::class.java]
@@ -45,7 +47,7 @@ class MainActivity : ComponentActivity() {
             object : ViewModelProvider.Factory {
                 override fun <T : androidx.lifecycle.ViewModel> create(modelClass: Class<T>): T {
                     @Suppress("UNCHECKED_CAST")
-                    return ExpenseViewModel(expenseRepository, projectRepository) as T
+                    return ExpenseViewModel(application, expenseRepository, projectRepository) as T
                 }
             }
         )[ExpenseViewModel::class.java]
