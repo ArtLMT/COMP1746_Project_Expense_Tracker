@@ -4,68 +4,65 @@ import android.content.Context
 import com.lmt.expensetracker.data.dao.AppDao
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.entities.ProjectWithSpent
-import com.lmt.expensetracker.data.remote.FirebaseService
-import com.lmt.expensetracker.data.remote.ProjectSyncModel
+import com.lmt.expensetracker.data.remote.FirestoreService
 import com.lmt.expensetracker.utils.NetworkUtils
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
 
 /**
  * Repository for managing [ProjectEntity] data with local Room persistence
- * and Firebase cloud synchronization.
+ * and Cloud Firestore synchronization.
  *
- * @param dao             The Room DAO for local database operations.
- * @param firebaseService The service responsible for uploading data to Firebase.
- * @param ioDispatcher    The [CoroutineDispatcher] used for I/O-bound work
- *                        (defaults to [Dispatchers.IO]).
+ * This replaces the previous Firebase Realtime Database integration.
+ * Local Room remains the single source of truth; Firestore is the cloud
+ * backup / sync target.
+ *
+ * @param dao              The Room DAO for local database operations.
+ * @param firestoreService The service responsible for Firestore CRUD operations.
+ * @param ioDispatcher     The [CoroutineDispatcher] used for I/O-bound work
+ *                         (defaults to [Dispatchers.IO]).
  */
 class ProjectRepository(
     private val dao: AppDao,
-    private val firebaseService: FirebaseService,
+    private val firestoreService: FirestoreService,
     private val ioDispatcher: CoroutineDispatcher = Dispatchers.IO
 ) {
+
+    private companion object {
+        const val SYNC_TIMEOUT_MS = 15000L
+    }
 
     // ==================== CLOUD SYNCHRONIZATION ====================
 
     /**
-     * Synchronizes all local projects and their associated expenses to Firebase
-     * in a single upload operation.
+     * Synchronizes all local projects and their associated expenses to
+     * Cloud Firestore using a batched write.
      *
      * **Workflow:**
      * 1. Checks for an active Wi-Fi or Cellular connection via [NetworkUtils].
      * 2. Fetches one-shot snapshots of all projects and expenses from Room.
-     * 3. Groups expenses under their parent project using [ProjectSyncModel].
-     * 4. Uploads the complete data map to Firebase in a single request.
+     * 3. Uploads everything to Firestore via [FirestoreService.syncAll].
      *
      * @param context The [Context] used to check network availability.
      * @return [Result.success] if the sync completes, or [Result.failure] with
      *         a descriptive exception on network or upload errors.
      */
     suspend fun syncAllToCloud(context: Context): Result<Unit> = withContext(ioDispatcher) {
-        // 1. Verify network connectivity before attempting upload
         if (!NetworkUtils.isNetworkAvailable(context)) {
-            return@withContext Result.failure(
-                Exception("No internet connection available. Please check your Wi-Fi or mobile data.")
-            )
+            return@withContext Result.failure(Exception("No internet connection"))
         }
 
         try {
-            // 2. Fetch static snapshots from Room (one-shot, not Flow)
             val projects = dao.getAllProjectsStatic()
             val allExpenses = dao.getAllExpensesStatic()
 
-            // 3. Map each project to a ProjectSyncModel containing its expenses
-            val dataToSync = projects.associate { project ->
-                project.projectId to ProjectSyncModel(
-                    details = project,
-                    expenses = allExpenses.filter { it.projectId == project.projectId }
-                )
+            // Firestore batched write – atomic & efficient
+            withTimeout(SYNC_TIMEOUT_MS) {
+                firestoreService.syncAll(projects, allExpenses)
             }
-
-            // 4. Upload the entire data map to Firebase in a single request
-            firebaseService.uploadEverything(dataToSync)
             Result.success(Unit)
         } catch (e: Exception) {
             Result.failure(e)
@@ -75,7 +72,8 @@ class ProjectRepository(
     // ==================== MUTATING OPERATIONS (with auto-sync) ====================
 
     /**
-     * Inserts a project into the local database and triggers a cloud sync.
+     * Inserts a project into the local database, syncs it to Firestore,
+     * and triggers a full cloud sync.
      *
      * @return [Result.success] if both the local insert and cloud sync succeed,
      *         or [Result.failure] if the sync fails (local insert is still persisted).

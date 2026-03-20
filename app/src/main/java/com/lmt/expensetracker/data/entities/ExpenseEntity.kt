@@ -36,3 +36,4 @@ data class ExpenseEntity(
     val description: String = "", // Optional
     val location: String = "" // Optional
 )
+

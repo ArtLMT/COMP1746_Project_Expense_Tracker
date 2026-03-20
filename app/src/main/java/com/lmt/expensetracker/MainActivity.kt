@@ -8,7 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.ViewModelProvider
 import com.lmt.expensetracker.data.database.AppDatabase
-import com.lmt.expensetracker.data.remote.FirebaseService
+import com.lmt.expensetracker.data.remote.FirestoreService
 import com.lmt.expensetracker.data.repository.ExpenseRepository
 import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.navigation.AppNavigation
@@ -27,8 +27,8 @@ class MainActivity : ComponentActivity() {
         database = AppDatabase.getDatabase(this)
 
         // Create repositories
-        val firebaseService = FirebaseService()
-        val projectRepository = ProjectRepository(database.appDao(), firebaseService)
+        val firestoreService = FirestoreService()
+        val projectRepository = ProjectRepository(database.appDao(), firestoreService)
         val expenseRepository = ExpenseRepository(database.appDao(), projectRepository)
 
         // Create ViewModels via factory (DI entry-point — easily replaced with Hilt later)

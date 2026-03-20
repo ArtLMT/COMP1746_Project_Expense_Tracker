@@ -35,7 +35,16 @@ object NetworkUtils {
         val capabilities =
             connectivityManager.getNetworkCapabilities(activeNetwork) ?: return false
 
-        return capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)
-                || capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)
+        val hasSupportedTransport =
+            capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) ||
+                capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)
+
+        // INTERNET + VALIDATED reduces false positives on captive portals.
+        val hasValidatedInternet =
+            capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) &&
+                capabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
+
+        return hasSupportedTransport && hasValidatedInternet
     }
 }

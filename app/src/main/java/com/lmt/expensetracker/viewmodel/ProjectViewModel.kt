@@ -57,6 +57,12 @@ data class StatusCounts(
     val onHold: Int = 0
 )
 
+data class SyncUiState(
+    val isSyncing: Boolean = false,
+    val message: String? = null,
+    val isError: Boolean = false
+)
+
 // ==================== VIEWMODEL ====================
 
 class ProjectViewModel(
@@ -82,8 +88,42 @@ class ProjectViewModel(
     private val _isDarkTheme = MutableStateFlow(true)
     val isDarkTheme: StateFlow<Boolean> = _isDarkTheme.asStateFlow()
 
+    private val _syncUiState = MutableStateFlow(SyncUiState())
+    val syncUiState: StateFlow<SyncUiState> = _syncUiState.asStateFlow()
+
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
+    }
+
+    fun clearSyncMessage() {
+        _syncUiState.value = _syncUiState.value.copy(message = null, isError = false)
+    }
+
+    fun syncNow() {
+        if (_syncUiState.value.isSyncing) return
+
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch {
+            _syncUiState.value = SyncUiState(isSyncing = true)
+
+            val result = repository.syncAllToCloud(context)
+            _syncUiState.value = result.fold(
+                onSuccess = {
+                    SyncUiState(
+                        isSyncing = false,
+                        message = "Sync completed successfully.",
+                        isError = false
+                    )
+                },
+                onFailure = { error ->
+                    SyncUiState(
+                        isSyncing = false,
+                        message = "Sync failed: ${error.message ?: "Unknown error"}",
+                        isError = true
+                    )
+                }
+            )
+        }
     }
 
     // Single Source of Truth for status options — consumed by the UI layer

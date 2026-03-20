@@ -28,7 +28,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.lmt.expensetracker.ui.components.ConfirmationDialog
-import com.lmt.expensetracker.ui.components.SuccessDialog
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
 import java.text.SimpleDateFormat
 import java.util.Date
@@ -46,6 +45,13 @@ fun ProjectFormScreen(
     val formState by viewModel.formState.collectAsStateWithLifecycle()
     val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
+
+    LaunchedEffect(saveSuccess) {
+        if (saveSuccess) {
+            viewModel.resetSaveSuccess()
+            onSaveSuccess()
+        }
+    }
 
     // ── Focus Requesters ──
     val nameFocus = remember { FocusRequester() }
@@ -443,17 +449,6 @@ fun ProjectFormScreen(
         )
     }
 
-    // ── Success Dialog ──
-    if (saveSuccess) {
-        SuccessDialog(
-            title = "Project Saved",
-            message = "Your project has been saved successfully!",
-            onDismiss = {
-                viewModel.resetSaveSuccess()
-                onSaveSuccess()
-            }
-        )
-    }
 }
 
 // ==================== HELPERS ====================

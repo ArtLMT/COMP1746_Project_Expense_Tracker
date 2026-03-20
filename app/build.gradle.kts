@@ -63,8 +63,7 @@ dependencies {
 
 // Import the Firebase BoM
     implementation(platform(libs.firebase.bom))
-    implementation(libs.firebase.database)    // TODO: Add the dependencies for Firebase products you want to use
-    // When using the BoM, don't specify versions in Firebase dependencies
+    implementation(libs.firebase.firestore)   // When using the BoM, don't specify versions in Firebase dependencies
     implementation("com.google.firebase:firebase-analytics")
 
 

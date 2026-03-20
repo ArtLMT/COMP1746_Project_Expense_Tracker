@@ -8,6 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -19,6 +20,7 @@ fun SettingScreen(
 ) {
     // Lắng nghe trạng thái Theme từ ViewModel
     val isDarkTheme by viewModel.isDarkTheme.collectAsState()
+    val syncUiState by viewModel.syncUiState.collectAsState()
 
     Column(
         modifier = Modifier
@@ -62,6 +64,35 @@ fun SettingScreen(
                     checkedThumbColor = MaterialTheme.colorScheme.primary,
                     checkedTrackColor = MaterialTheme.colorScheme.primaryContainer
                 )
+            )
+        }
+
+        Spacer(modifier = Modifier.height(20.dp))
+
+        Button(
+            onClick = { viewModel.syncNow() },
+            enabled = !syncUiState.isSyncing,
+            modifier = Modifier.fillMaxWidth()
+        ) {
+            if (syncUiState.isSyncing) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(18.dp),
+                    strokeWidth = 2.dp,
+                    color = MaterialTheme.colorScheme.onPrimary
+                )
+                Spacer(modifier = Modifier.width(10.dp))
+                Text("Syncing...")
+            } else {
+                Text("Sync Local Data to Firebase")
+            }
+        }
+
+        if (syncUiState.message != null) {
+            Spacer(modifier = Modifier.height(12.dp))
+            Text(
+                text = syncUiState.message ?: "",
+                color = if (syncUiState.isError) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
+                style = MaterialTheme.typography.bodyMedium
             )
         }
     }
