@@ -44,7 +44,7 @@ data class ProjectFormState(
 )
 
 data class ProjectListState(
-    val projects: List<ProjectCardUiModel> = emptyList(), // Đã đổi sang UiModel
+    val projects: List<ProjectCardUiModel> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
@@ -59,6 +59,12 @@ data class StatusCounts(
 
 data class SyncUiState(
     val isSyncing: Boolean = false,
+    val message: String? = null,
+    val isError: Boolean = false
+)
+
+data class RestoreUiState(
+    val isRestoring: Boolean = false,
     val message: String? = null,
     val isError: Boolean = false
 )
@@ -91,12 +97,19 @@ class ProjectViewModel(
     private val _syncUiState = MutableStateFlow(SyncUiState())
     val syncUiState: StateFlow<SyncUiState> = _syncUiState.asStateFlow()
 
+    private val _restoreUiState = MutableStateFlow(RestoreUiState())
+    val restoreUiState: StateFlow<RestoreUiState> = _restoreUiState.asStateFlow()
+
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
     }
 
     fun clearSyncMessage() {
         _syncUiState.value = _syncUiState.value.copy(message = null, isError = false)
+    }
+
+    fun clearRestoreMessage() {
+        _restoreUiState.value = _restoreUiState.value.copy(message = null, isError = false)
     }
 
     fun syncNow() {
@@ -119,6 +132,39 @@ class ProjectViewModel(
                     SyncUiState(
                         isSyncing = false,
                         message = "Sync failed: ${error.message ?: "Unknown error"}",
+                        isError = true
+                    )
+                }
+            )
+        }
+    }
+
+    /**
+     * Pulls all data from Cloud Firestore and upserts it into the local
+     * Room database. Refreshes the project list on success.
+     */
+    fun restoreNow() {
+        if (_restoreUiState.value.isRestoring) return
+
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch {
+            _restoreUiState.value = RestoreUiState(isRestoring = true)
+
+            val result = repository.restoreFromCloud(context)
+            _restoreUiState.value = result.fold(
+                onSuccess = { summary ->
+                    // Refresh local list after restore
+                    loadProjects()
+                    RestoreUiState(
+                        isRestoring = false,
+                        message = summary,
+                        isError = false
+                    )
+                },
+                onFailure = { error ->
+                    RestoreUiState(
+                        isRestoring = false,
+                        message = "Restore failed: ${error.message ?: "Unknown error"}",
                         isError = true
                     )
                 }
@@ -210,8 +256,6 @@ class ProjectViewModel(
         _listState.value = _listState.value.copy(filterStatus = status)
         loadProjects()
     }
-
-    // ... (Các hàm khác như saveProject, onNameChange, validateForm giữ nguyên) ...
 
     fun deleteProject(projectEntity: ProjectEntity) {
         viewModelScope.launch {
@@ -311,6 +355,7 @@ class ProjectViewModel(
         val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
+                _showConfirmDialog.value = false
                 val project = ProjectEntity(
                     projectId = state.projectId,
                     name = state.name,

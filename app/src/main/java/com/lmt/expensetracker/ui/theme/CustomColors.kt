@@ -2,9 +2,7 @@ package com.lmt.expensetracker.ui.theme
 
 import androidx.compose.ui.graphics.Color
 
-// ============================================================================
-// COLOR PALETTE - TÍCH HỢP TỪ TAILWIND & STATUS COLORS
-// ============================================================================
+
 object CustomColors {
     // Primary
     val PrimaryLight = Color(0xFF16A34A)     // Softer green
@@ -19,12 +17,12 @@ object CustomColors {
     val SurfaceDark = Color(0xFF1A3222)
 
     // Text
-    val TextPrimaryLight = Color(0xFF111827)   // gray-900 (Đen chữ chính)
-    val TextSecondaryLight = Color(0xFF6B7280) // gray-500 (Xám chữ phụ)
-    val TextPrimaryDark = Color(0xFFE5E7EB)    // gray-200 (Trắng chữ chính)
-    val TextSecondaryDark = Color(0xFF9CA3AF)  // gray-400 (Xám chữ phụ cho Dark mode)
+    val TextPrimaryLight = Color(0xFF111827)   // gray-900
+    val TextSecondaryLight = Color(0xFF6B7280) // gray-500
+    val TextPrimaryDark = Color(0xFFE5E7EB)    // gray-200
+    val TextSecondaryDark = Color(0xFF9CA3AF)  // gray-400
 
-    // --- GIỮ LẠI CÁC STATUS & BORDER COLORS CHO ỨNG DỤNG ---
+    // STATUS & BORDER COLORS
     val StatusActive = Color(0xFF19E65E)
     val StatusAtRisk = Color(0xFFEAB308)
     val StatusAtRiskBg = Color(0x33EAB308)

@@ -155,8 +155,6 @@ class ExpenseViewModel(
         }
     }
 
-
-
     fun filterByStatus(status: String?) {
         _listState.value = _listState.value.copy(filterStatus = status)
         loadExpenses(_listState.value.selectedProjectId)

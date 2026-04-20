@@ -121,6 +121,23 @@ class FirestoreService(
     }
 
     /**
+     * Fetches **all** documents from the "expenses" collection and maps them
+     * back to [ExpenseEntity] instances.
+     *
+     * @return A (potentially empty) list of all expenses.
+     * @throws Exception if the Firestore read fails.
+     */
+    suspend fun getAllExpenses(): List<ExpenseEntity> {
+        val snapshot = db.collection(EXPENSES_COLLECTION)
+            .get()
+            .await()
+
+        return snapshot.documents.mapNotNull { doc ->
+            doc.toExpenseEntity()
+        }
+    }
+
+    /**
      * Deletes a single expense document by its ID.
      *
      * @param expenseId ID of the expense to delete.

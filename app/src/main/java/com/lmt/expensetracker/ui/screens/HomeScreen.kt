@@ -31,7 +31,6 @@ fun DashboardContent(
         // Generic Header Section
         HeaderSection(
             title = "Dashboard",
-            subtitle = "Good morning, Alex",
             searchQuery = searchQuery,
             onSearchChange = {
                 searchQuery = it

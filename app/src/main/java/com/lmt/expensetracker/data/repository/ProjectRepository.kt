@@ -69,6 +69,49 @@ class ProjectRepository(
         }
     }
 
+    /**
+     * Pulls all projects and expenses from Cloud Firestore and upserts them
+     * into the local Room database.
+     *
+     * **Strategy:** Insert-or-Update (Upsert). Existing local records that
+     * match by primary key are updated; new records are inserted. Local-only
+     * records that do not exist in Firestore are **not** deleted, avoiding
+     * cascading FK issues with related entities.
+     *
+     * **Order:** Projects are upserted first because expenses carry a foreign
+     * key to `projects.projectId`.
+     *
+     * @param context The [Context] used to check network availability.
+     * @return [Result.success] with a summary message, or [Result.failure]
+     *         with a descriptive exception on network or read errors.
+     */
+    suspend fun restoreFromCloud(context: Context): Result<String> = withContext(ioDispatcher) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            return@withContext Result.failure(Exception("No internet connection"))
+        }
+
+        try {
+            // 1. Fetch all data from Firestore
+            val (remoteProjects, remoteExpenses) = withTimeout(SYNC_TIMEOUT_MS) {
+                val projects = firestoreService.getProjects()
+                val expenses = firestoreService.getAllExpenses()
+                projects to expenses
+            }
+
+            // 2. Upsert projects first (parent table)
+            dao.upsertProjects(remoteProjects)
+
+            // 3. Upsert expenses (child table — FK references projects)
+            dao.upsertExpenses(remoteExpenses)
+
+            Result.success(
+                "Restored ${remoteProjects.size} projects and ${remoteExpenses.size} expenses."
+            )
+        } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
     // ==================== MUTATING OPERATIONS (with auto-sync) ====================
 
     /**

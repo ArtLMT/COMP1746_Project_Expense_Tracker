@@ -6,6 +6,7 @@ import androidx.room.Insert
 import androidx.room.OnConflictStrategy
 import androidx.room.Query
 import androidx.room.Update
+import androidx.room.Upsert
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.entities.ProjectWithSpent
@@ -16,7 +17,10 @@ interface AppDao {
 
     // ==================== PROJECT OPERATIONS ====================
 
-    @Insert(onConflict = OnConflictStrategy.REPLACE)
+//    @Insert(onConflict = OnConflictStrategy.REPLACE)
+    // bản chất thằng này là nó sẽ xóa thằng cũ đi nếu có conflict rồi tạo lại cái mới
+    // Vì thế mà nó sẽ xóa luôn mấy cái khóa ngoại, nếu có On Delete Cascade nữa là bay hết luôn
+    @Upsert
     suspend fun insertProject(project: ProjectEntity)
 
     @Update
@@ -157,6 +161,24 @@ interface AppDao {
     // Static fetch for Firebase sync (returns a one-shot List, not a Flow)
     @Query("SELECT * FROM expenses")
     suspend fun getAllExpensesStatic(): List<ExpenseEntity>
+
+    // ==================== BULK UPSERT (Restore from Cloud) ====================
+
+    /**
+     * Upserts a list of projects. Inserts new records and updates existing
+     * ones matched by [ProjectEntity.projectId].
+     * Does NOT delete unmatched local records – avoids cascading FK issues.
+     */
+    @Upsert
+    suspend fun upsertProjects(projects: List<ProjectEntity>)
+
+    /**
+     * Upserts a list of expenses. Inserts new records and updates existing
+     * ones matched by [ExpenseEntity.expenseId].
+     * Does NOT delete unmatched local records – avoids cascading FK issues.
+     */
+    @Upsert
+    suspend fun upsertExpenses(expenses: List<ExpenseEntity>)
 
     // ==================== AGGREGATION QUERIES ====================
 
