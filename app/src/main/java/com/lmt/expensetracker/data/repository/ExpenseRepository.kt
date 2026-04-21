@@ -39,8 +39,9 @@ class ExpenseRepository(
     /**
      * Deletes an expense locally and triggers a cloud sync.
      */
-    suspend fun deleteExpense(expense: ExpenseEntity, context: Context): Result<Unit> {
-        dao.deleteExpense(expense)
+    suspend fun deleteExpense(expenseId: String, context: Context): Result<Unit> {
+//        dao.deleteExpense(expense)
+        dao.softDeleteExpense(expenseId)
         return projectRepository.syncAllToCloud(context)
     }
 

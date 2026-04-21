@@ -210,33 +210,37 @@ class FirestoreService(
      * avoid accidental Room-annotation leakage.
      */
     private fun ProjectEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
-        "projectId" to projectId,
-        "name" to name,
-        "description" to description,
-        "startDate" to startDate,
-        "endDate" to endDate,
-        "manager" to manager,
-        "status" to status,
-        "budget" to budget,
-        "specialRequirements" to specialRequirements,
-        "clientDepartmentInfo" to clientDepartmentInfo
+        "projectId"            to projectId,
+        "name"                 to name,
+        "description"          to description,
+        "startDate"            to startDate,
+        "endDate"              to endDate,
+        "manager"              to manager,
+        "status"               to status,
+        "budget"               to budget,
+        "specialRequirements"  to specialRequirements,
+        "clientDepartmentInfo" to clientDepartmentInfo,
+        "updatedAt"            to updatedAt,   // epoch ms — Last-Write-Wins key
+        "isDeleted"            to isDeleted    // tombstone flag
     )
 
     /**
      * Converts a [ExpenseEntity] to a Firestore-friendly [Map].
      */
     private fun ExpenseEntity.toFirestoreMap(): Map<String, Any?> = mapOf(
-        "expenseId" to expenseId,
-        "projectId" to projectId,
-        "date" to date,
-        "amount" to amount,
-        "currency" to currency,
-        "type" to type,
+        "expenseId"     to expenseId,
+        "projectId"     to projectId,
+        "date"          to date,
+        "amount"        to amount,
+        "currency"      to currency,
+        "type"          to type,
         "paymentMethod" to paymentMethod,
-        "claimant" to claimant,
-        "status" to status,
-        "description" to description,
-        "location" to location
+        "claimant"      to claimant,
+        "status"        to status,
+        "description"   to description,
+        "location"      to location,
+        "updatedAt"     to updatedAt,  // epoch ms — Last-Write-Wins key
+        "isDeleted"     to isDeleted   // tombstone flag
     )
 
     /**
@@ -246,16 +250,18 @@ class FirestoreService(
     private fun com.google.firebase.firestore.DocumentSnapshot.toProjectEntity(): ProjectEntity? {
         return try {
             ProjectEntity(
-                projectId = getString("projectId") ?: id,
-                name = getString("name") ?: return null,
-                description = getString("description") ?: "",
-                startDate = getString("startDate") ?: return null,
-                endDate = getString("endDate") ?: return null,
-                manager = getString("manager") ?: "",
-                status = getString("status") ?: "Active",
-                budget = getDouble("budget") ?: 0.0,
-                specialRequirements = getString("specialRequirements") ?: "",
-                clientDepartmentInfo = getString("clientDepartmentInfo") ?: ""
+                projectId            = getString("projectId") ?: id,
+                name                 = getString("name") ?: return null,
+                description          = getString("description") ?: "",
+                startDate            = getString("startDate") ?: return null,
+                endDate              = getString("endDate") ?: return null,
+                manager              = getString("manager") ?: "",
+                status               = getString("status") ?: "Active",
+                budget               = getDouble("budget") ?: 0.0,
+                specialRequirements  = getString("specialRequirements") ?: "",
+                clientDepartmentInfo = getString("clientDepartmentInfo") ?: "",
+                updatedAt            = getLong("updatedAt") ?: 0L,
+                isDeleted            = getBoolean("isDeleted") ?: false
             )
         } catch (e: Exception) {
             null // Skip malformed documents gracefully
@@ -269,17 +275,19 @@ class FirestoreService(
     private fun com.google.firebase.firestore.DocumentSnapshot.toExpenseEntity(): ExpenseEntity? {
         return try {
             ExpenseEntity(
-                expenseId = getString("expenseId") ?: id,
-                projectId = getString("projectId") ?: return null,
-                date = getString("date") ?: return null,
-                amount = getDouble("amount") ?: return null,
-                currency = getString("currency") ?: "USD",
-                type = getString("type") ?: return null,
+                expenseId     = getString("expenseId") ?: id,
+                projectId     = getString("projectId") ?: return null,
+                date          = getString("date") ?: return null,
+                amount        = getDouble("amount") ?: return null,
+                currency      = getString("currency") ?: "USD",
+                type          = getString("type") ?: return null,
                 paymentMethod = getString("paymentMethod") ?: return null,
-                claimant = getString("claimant") ?: return null,
-                status = getString("status") ?: "Pending",
-                description = getString("description") ?: "",
-                location = getString("location") ?: ""
+                claimant      = getString("claimant") ?: return null,
+                status        = getString("status") ?: "Pending",
+                description   = getString("description") ?: "",
+                location      = getString("location") ?: "",
+                updatedAt     = getLong("updatedAt") ?: 0L,
+                isDeleted     = getBoolean("isDeleted") ?: false
             )
         } catch (e: Exception) {
             null // Skip malformed documents gracefully

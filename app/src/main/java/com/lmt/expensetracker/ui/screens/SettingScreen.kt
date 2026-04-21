@@ -13,12 +13,12 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.lmt.expensetracker.viewmodel.ProjectViewModel
+import com.lmt.expensetracker.viewmodel.SettingsEvent
 
 @Composable
 fun SettingScreen(
@@ -30,25 +30,20 @@ fun SettingScreen(
     val restoreUiState by viewModel.restoreUiState.collectAsState()
     val context = LocalContext.current
 
-    // Show Toast messages for restore results
-    LaunchedEffect(restoreUiState.message) {
-        restoreUiState.message?.let { message ->
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_LONG
-            ).show()
-        }
-    }
-
-    // Show Toast messages for sync results
-    LaunchedEffect(syncUiState.message) {
-        syncUiState.message?.let { message ->
-            Toast.makeText(
-                context,
-                message,
-                Toast.LENGTH_LONG
-            ).show()
+    // Collect one-time events from the Channel.
+    // LaunchedEffect(Unit) runs once per composition lifetime — it does NOT
+    // re-execute on recomposition or when navigating back to this screen,
+    // so Toast messages are guaranteed to appear exactly once per event.
+    LaunchedEffect(Unit) {
+        viewModel.settingsEvents.collect { event ->
+            when (event) {
+                is SettingsEvent.SyncResult -> Toast.makeText(
+                    context, event.message, Toast.LENGTH_LONG
+                ).show()
+                is SettingsEvent.RestoreResult -> Toast.makeText(
+                    context, event.message, Toast.LENGTH_LONG
+                ).show()
+            }
         }
     }
 
@@ -99,7 +94,7 @@ fun SettingScreen(
 
         Spacer(modifier = Modifier.height(20.dp))
 
-        // ── Sync Local → Firebase ──
+        // Sync Local to Firebase
         Button(
             onClick = { viewModel.syncNow() },
             enabled = !syncUiState.isSyncing,
@@ -124,18 +119,9 @@ fun SettingScreen(
             }
         }
 
-        if (syncUiState.message != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = syncUiState.message ?: "",
-                color = if (syncUiState.isError) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
-                style = MaterialTheme.typography.bodyMedium
-            )
-        }
-
         Spacer(modifier = Modifier.height(12.dp))
 
-        // ── Restore Firebase → Local ──
+        // Restore Firebase to Local
         OutlinedButton(
             onClick = { viewModel.restoreNow() },
             enabled = !restoreUiState.isRestoring,
@@ -158,15 +144,6 @@ fun SettingScreen(
                 Spacer(modifier = Modifier.width(8.dp))
                 Text("Restore Data from Firebase")
             }
-        }
-
-        if (restoreUiState.message != null) {
-            Spacer(modifier = Modifier.height(12.dp))
-            Text(
-                text = restoreUiState.message ?: "",
-                color = if (restoreUiState.isError) MaterialTheme.colorScheme.error else Color(0xFF2E7D32),
-                style = MaterialTheme.typography.bodyMedium
-            )
         }
     }
 }

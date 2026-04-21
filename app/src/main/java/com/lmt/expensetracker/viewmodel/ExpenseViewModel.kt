@@ -169,7 +169,7 @@ class ExpenseViewModel(
         val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
-                val result = repository.deleteExpense(expense, context)
+                val result = repository.deleteExpense(expense.expenseId, context)
                 result.onFailure { e ->
                     _listState.value = _listState.value.copy(
                         error = "Deleted locally, but cloud sync failed: ${e.message}"
