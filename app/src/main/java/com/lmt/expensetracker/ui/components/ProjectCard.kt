@@ -29,27 +29,13 @@ import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
 
-// ============================================================================
-// UTILS: Format ngày tháng
-// ============================================================================
-//fun formatDisplayDate(dateString: String): String {
-//    if (dateString.isBlank()) return ""
-//    return try {
-//        val inputFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd") // Hoặc yyyy/MM/dd tùy DB
-//        val parsedDate = LocalDate.parse(dateString, inputFormatter)
-//        val outputFormatter = DateTimeFormatter.ofPattern("dd/MM/yyyy")
-//        parsedDate.format(outputFormatter)
-//    } catch (e: DateTimeParseException) {
-//        dateString
-//    }
-//}
 
 // ============================================================================
 // PROJECT CARD COMPONENT
 // ============================================================================
 @Composable
 fun ProjectCard(
-    uiModel: ProjectCardUiModel, // ĐÃ SỬA: Nhận UiModel thay vì ProjectWithSpent
+    uiModel: ProjectCardUiModel,
     onEdit: (String) -> Unit,
     onDelete: () -> Unit,
     onCardClick: () -> Unit
