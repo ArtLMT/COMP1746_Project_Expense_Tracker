@@ -7,10 +7,12 @@ import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.repository.ProjectRepository
 import com.lmt.expensetracker.ui.theme.BudgetStatus
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.firstOrNull
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.launch
 import java.util.UUID
 
@@ -44,7 +46,7 @@ data class ProjectFormState(
 )
 
 data class ProjectListState(
-    val projects: List<ProjectCardUiModel> = emptyList(), // Đã đổi sang UiModel
+    val projects: List<ProjectCardUiModel> = emptyList(),
     val isLoading: Boolean = false,
     val error: String? = null,
     val searchQuery: String = "",
@@ -57,11 +59,25 @@ data class StatusCounts(
     val onHold: Int = 0
 )
 
+/** Holds only the in-progress loading indicator state for the sync button. */
 data class SyncUiState(
-    val isSyncing: Boolean = false,
-    val message: String? = null,
-    val isError: Boolean = false
+    val isSyncing: Boolean = false
 )
+
+/** Holds only the in-progress loading indicator state for the restore button. */
+data class RestoreUiState(
+    val isRestoring: Boolean = false
+)
+
+/**
+ * One-time UI events fired from [ProjectViewModel] to the Settings screen.
+ * Delivered via [Channel] — each event is consumed exactly once, regardless
+ * of recompositions or back-stack navigation.
+ */
+sealed interface SettingsEvent {
+    data class SyncResult(val message: String, val isError: Boolean) : SettingsEvent
+    data class RestoreResult(val message: String, val isError: Boolean) : SettingsEvent
+}
 
 // ==================== VIEWMODEL ====================
 
@@ -91,12 +107,21 @@ class ProjectViewModel(
     private val _syncUiState = MutableStateFlow(SyncUiState())
     val syncUiState: StateFlow<SyncUiState> = _syncUiState.asStateFlow()
 
+    private val _restoreUiState = MutableStateFlow(RestoreUiState())
+    val restoreUiState: StateFlow<RestoreUiState> = _restoreUiState.asStateFlow()
+
+    /**
+     * One-time event bus for the Settings screen.
+     *
+     * [Channel.BUFFERED] ensures no event is dropped if the collector is
+     * momentarily suspended (e.g. during recomposition). Each event is
+     * delivered to exactly one collector — fire-and-forget from the ViewModel.
+     */
+    private val _settingsEvents = Channel<SettingsEvent>(Channel.BUFFERED)
+    val settingsEvents = _settingsEvents.receiveAsFlow()
+
     fun toggleTheme() {
         _isDarkTheme.value = !_isDarkTheme.value
-    }
-
-    fun clearSyncMessage() {
-        _syncUiState.value = _syncUiState.value.copy(message = null, isError = false)
     }
 
     fun syncNow() {
@@ -107,19 +132,61 @@ class ProjectViewModel(
             _syncUiState.value = SyncUiState(isSyncing = true)
 
             val result = repository.syncAllToCloud(context)
-            _syncUiState.value = result.fold(
+            _syncUiState.value = SyncUiState(isSyncing = false)
+
+            // Fire one-time event — the Channel delivers it exactly once
+            result.fold(
                 onSuccess = {
-                    SyncUiState(
-                        isSyncing = false,
-                        message = "Sync completed successfully.",
-                        isError = false
+                    _settingsEvents.send(
+                        SettingsEvent.SyncResult(
+                            message = "Sync completed successfully.",
+                            isError = false
+                        )
                     )
                 },
                 onFailure = { error ->
-                    SyncUiState(
-                        isSyncing = false,
-                        message = "Sync failed: ${error.message ?: "Unknown error"}",
-                        isError = true
+                    _settingsEvents.send(
+                        SettingsEvent.SyncResult(
+                            message = "Sync failed: ${error.message ?: "Unknown error"}",
+                            isError = true
+                        )
+                    )
+                }
+            )
+        }
+    }
+
+    /**
+     * Pulls all data from Cloud Firestore and upserts it into the local
+     * Room database. Refreshes the project list on success.
+     */
+    fun restoreNow() {
+        if (_restoreUiState.value.isRestoring) return
+
+        val context = getApplication<Application>().applicationContext
+        viewModelScope.launch {
+            _restoreUiState.value = RestoreUiState(isRestoring = true)
+
+            val result = repository.restoreFromCloud(context)
+            _restoreUiState.value = RestoreUiState(isRestoring = false)
+
+            // Refresh local list & fire one-time event — the Channel delivers it exactly once
+            result.fold(
+                onSuccess = { summary ->
+                    loadProjects()
+                    _settingsEvents.send(
+                        SettingsEvent.RestoreResult(
+                            message = summary,
+                            isError = false
+                        )
+                    )
+                },
+                onFailure = { error ->
+                    _settingsEvents.send(
+                        SettingsEvent.RestoreResult(
+                            message = "Restore failed: ${error.message ?: "Unknown error"}",
+                            isError = true
+                        )
                     )
                 }
             )
@@ -210,8 +277,6 @@ class ProjectViewModel(
         _listState.value = _listState.value.copy(filterStatus = status)
         loadProjects()
     }
-
-    // ... (Các hàm khác như saveProject, onNameChange, validateForm giữ nguyên) ...
 
     fun deleteProject(projectEntity: ProjectEntity) {
         viewModelScope.launch {
@@ -311,6 +376,7 @@ class ProjectViewModel(
         val context = getApplication<Application>().applicationContext
         viewModelScope.launch {
             try {
+                _showConfirmDialog.value = false
                 val project = ProjectEntity(
                     projectId = state.projectId,
                     name = state.name,

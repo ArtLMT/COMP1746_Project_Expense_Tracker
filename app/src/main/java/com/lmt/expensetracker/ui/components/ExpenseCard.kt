@@ -181,11 +181,31 @@ fun ExpenseCard(
                         color = MaterialTheme.colorScheme.onSurface
                     )
                     // Metadata: Date
-                    Text(
-                        text = expense.date,
-                        fontSize = 12.sp,
-                        color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
-                    )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(8.dp)
+                    ) {
+                        Text(
+                            text = expense.date,
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.6f)
+                        )
+
+                        // Dấu chấm ngăn cách (Separator)
+                        Text(
+                            text = "•",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.4f)
+                        )
+
+                        // Hiển thị Claimant (Người yêu cầu)
+                        Text(
+                            text = "By: ${expense.claimant}",
+                            fontSize = 12.sp,
+                            fontWeight = FontWeight.Medium,
+                            color = MaterialTheme.colorScheme.primary // Dùng màu primary để làm nổi bật tên
+                        )
+                    }
                 }
 
                 // Actions menu

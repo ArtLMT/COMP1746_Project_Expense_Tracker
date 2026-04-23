@@ -43,34 +43,34 @@ fun ExpenseFormScreen(
     val showConfirmDialog by viewModel.showConfirmDialog.collectAsStateWithLifecycle()
     val saveSuccess by viewModel.saveSuccess.collectAsStateWithLifecycle()
 
-    // ── Set project ID on first composition ──
+    // Set project ID on first composition
     remember {
         viewModel.setProjectId(projectId)
         0
     }
 
-    // ── Focus Requesters ──
+    // Focus Requesters
     val amountFocus = remember { FocusRequester() }
     val claimantFocus = remember { FocusRequester() }
     val descriptionFocus = remember { FocusRequester() }
     val locationFocus = remember { FocusRequester() }
 
-    // ── Date Picker State ──
+    // Date Picker State
     var showDatePicker by remember { mutableStateOf(false) }
 
-    // ── Dropdown States ──
+    // Dropdown States
     var currencyExpanded by remember { mutableStateOf(false) }
     var typeExpanded by remember { mutableStateOf(false) }
     var paymentMethodExpanded by remember { mutableStateOf(false) }
     var statusExpanded by remember { mutableStateOf(false) }
 
-    // ── Single Source of Truth from ViewModel ──
+    // Single Source of Truth from ViewModel
     val currencies = viewModel.currencies
     val expenseTypes = viewModel.expenseTypes
     val paymentMethods = viewModel.paymentMethods
     val statuses = viewModel.statuses
 
-    // ── Scaffold Layout ──
+    // Scaffold Layout
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -119,7 +119,7 @@ fun ExpenseFormScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp)
         ) {
-            // ── Project (locked / read-only) ──
+            // Project (locked / read-only)
             FormTextField(
                 value = projectId,
                 onValueChange = {},
@@ -128,7 +128,7 @@ fun ExpenseFormScreen(
                 enabled = false
             )
 
-            // ── Date — read-only, opens DatePicker on click ──
+            // Date — read-only, opens DatePicker on click
             val dateInteraction = remember { MutableInteractionSource() }
             LaunchedEffect(dateInteraction) {
                 dateInteraction.interactions.collect { interaction ->
@@ -156,7 +156,7 @@ fun ExpenseFormScreen(
                 interactionSource = dateInteraction
             )
 
-            // ── Amount ──
+            // Amount
             FormTextField(
                 value = formState.amount,
                 onValueChange = { viewModel.onAmountChange(it) },
@@ -179,7 +179,7 @@ fun ExpenseFormScreen(
                 thickness = 1.dp
             )
 
-            // ── Currency — ExposedDropdownMenuBox ──
+            // Currency — ExposedDropdownMenuBox
             ExposedDropdownMenuBox(
                 expanded = currencyExpanded,
                 onExpandedChange = { currencyExpanded = it }
@@ -219,7 +219,7 @@ fun ExpenseFormScreen(
                 }
             }
 
-            // ── Expense Type — ExposedDropdownMenuBox ──
+            // Expense Type — ExposedDropdownMenuBox
             ExposedDropdownMenuBox(
                 expanded = typeExpanded,
                 onExpandedChange = { typeExpanded = it }
@@ -259,7 +259,7 @@ fun ExpenseFormScreen(
                 }
             }
 
-            // ── Payment Method — ExposedDropdownMenuBox ──
+            // Payment Method — ExposedDropdownMenuBox
             ExposedDropdownMenuBox(
                 expanded = paymentMethodExpanded,
                 onExpandedChange = { paymentMethodExpanded = it }
@@ -299,7 +299,7 @@ fun ExpenseFormScreen(
                 }
             }
 
-            // ── Status — ExposedDropdownMenuBox ──
+            // Status — ExposedDropdownMenuBox
             ExposedDropdownMenuBox(
                 expanded = statusExpanded,
                 onExpandedChange = { statusExpanded = it }
@@ -344,7 +344,7 @@ fun ExpenseFormScreen(
                 thickness = 1.dp
             )
 
-            // ── Claimant ──
+            // Claimant
             FormTextField(
                 value = formState.claimant,
                 onValueChange = { viewModel.onClaimantChange(it) },
@@ -361,7 +361,7 @@ fun ExpenseFormScreen(
                 )
             )
 
-            // ── Description ──
+            // Description
             FormTextField(
                 value = formState.description,
                 onValueChange = { viewModel.onDescriptionChange(it) },
@@ -377,7 +377,7 @@ fun ExpenseFormScreen(
                 )
             )
 
-            // ── Location ──
+            // Location
             FormTextField(
                 value = formState.location,
                 onValueChange = { viewModel.onLocationChange(it) },
@@ -394,7 +394,7 @@ fun ExpenseFormScreen(
         }
     }
 
-    // ── Date Picker Dialog ──
+    // Date Picker Dialog
     if (showDatePicker) {
         val datePickerState = rememberDatePickerState()
         DatePickerDialog(
@@ -415,7 +415,7 @@ fun ExpenseFormScreen(
         }
     }
 
-    // ── Confirmation Dialog ──
+    // Confirmation Dialog
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Expense Details",
@@ -450,7 +450,7 @@ fun ExpenseFormScreen(
         )
     }
 
-    // ── Navigate back on save success (reactive, no dialog needed) ──
+    // Navigate back on save success (reactive, no dialog needed)
     LaunchedEffect(saveSuccess) {
         if (saveSuccess) {
             viewModel.resetSaveSuccess()
@@ -461,13 +461,11 @@ fun ExpenseFormScreen(
 
 // ==================== HELPERS ====================
 
-/** Convert epoch millis to ISO date string (yyyy-MM-dd). */
 private fun formatMillisToIso(millis: Long): String {
     val sdf = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
     return sdf.format(Date(millis))
 }
 
-/** Convert ISO date (yyyy-MM-dd) to display format (dd-MM-yyyy). Returns raw value on error. */
 private fun formatIsoToDisplay(isoDate: String): String {
     if (isoDate.isBlank()) return ""
     return try {

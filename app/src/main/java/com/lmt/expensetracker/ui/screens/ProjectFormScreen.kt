@@ -53,7 +53,7 @@ fun ProjectFormScreen(
         }
     }
 
-    // ── Focus Requesters ──
+    // Focus Requesters
     val nameFocus = remember { FocusRequester() }
     val descriptionFocus = remember { FocusRequester() }
     val budgetFocus = remember { FocusRequester() }
@@ -61,15 +61,15 @@ fun ProjectFormScreen(
     val clientFocus = remember { FocusRequester() }
     val specialReqFocus = remember { FocusRequester() }
 
-    // ── Date Picker State ──
+    // Date Picker State
     var showStartDatePicker by remember { mutableStateOf(false) }
     var showEndDatePicker by remember { mutableStateOf(false) }
 
-    // ── Status Dropdown ──
+    // Status Dropdown
     var statusExpanded by remember { mutableStateOf(false) }
     val statusOptions = viewModel.statusOptions   // Single Source of Truth
 
-    // ── Scaffold Layout ──
+    // Scaffold Layout
     Scaffold(
         topBar = {
             CenterAlignedTopAppBar(
@@ -118,7 +118,7 @@ fun ProjectFormScreen(
                 .padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(24.dp)
         ) {
-            // ── Section: Core Info ──
+            // Section: Core Info
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.name,
@@ -159,7 +159,7 @@ fun ProjectFormScreen(
                 thickness = 1.dp
             )
 
-            // ── Section: Timeline & Status ──
+            // Section: Timeline & Status
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -271,7 +271,7 @@ fun ProjectFormScreen(
                 thickness = 1.dp
             )
 
-            // ── Section: Financials & People ──
+            // Section: Financials & People
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.budget,
@@ -357,7 +357,7 @@ fun ProjectFormScreen(
                 thickness = 1.dp
             )
 
-            // ── Section: Additional Details ──
+            // Section: Additional Details
             Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
                 FormTextField(
                     value = formState.specialRequirements,
@@ -377,7 +377,7 @@ fun ProjectFormScreen(
         }
     }
 
-    // ── Date Picker Dialogs ──
+    // Date Picker Dialogs
     if (showStartDatePicker) {
         val datePickerState = rememberDatePickerState()
         DatePickerDialog(
@@ -418,7 +418,7 @@ fun ProjectFormScreen(
         }
     }
 
-    // ── Confirmation Dialog ──
+    // Confirmation Dialog
     if (showConfirmDialog) {
         ConfirmationDialog(
             title = "Confirm Project Details",
@@ -457,7 +457,6 @@ private fun formatMillisToDate(millis: Long): String {
     return sdf.format(Date(millis))
 }
 
-/** Convert ISO date (yyyy-MM-dd) to display format (dd-MM-yyyy). Returns raw value on error. */
 private fun formatIsoToDisplay(isoDate: String): String {
     if (isoDate.isBlank()) return ""
     return try {

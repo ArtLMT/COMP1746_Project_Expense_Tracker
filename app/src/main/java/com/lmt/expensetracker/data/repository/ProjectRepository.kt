@@ -1,6 +1,7 @@
 package com.lmt.expensetracker.data.repository
 
 import android.content.Context
+import android.util.Log
 import com.lmt.expensetracker.data.dao.AppDao
 import com.lmt.expensetracker.data.entities.ProjectEntity
 import com.lmt.expensetracker.data.entities.ProjectWithSpent
@@ -11,6 +12,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withContext
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Repository for managing [ProjectEntity] data with local Room persistence
@@ -56,8 +58,8 @@ class ProjectRepository(
         }
 
         try {
-            val projects = dao.getAllProjectsStatic()
-            val allExpenses = dao.getAllExpensesStatic()
+            val projects = dao.getAllProjectsStaticRaw()   // raw: includes isDeleted=1 tombstones
+            val allExpenses = dao.getAllExpensesStaticRaw() // raw: includes isDeleted=1 tombstones
 
             // Firestore batched write – atomic & efficient
             withTimeout(SYNC_TIMEOUT_MS) {
@@ -65,6 +67,75 @@ class ProjectRepository(
             }
             Result.success(Unit)
         } catch (e: Exception) {
+            Result.failure(e)
+        }
+    }
+
+    /**
+     * Pulls all projects and expenses from Cloud Firestore and upserts them
+     * into the local Room database.
+     *
+     * **Strategy:** Insert-or-Update (Upsert). Existing local records that
+     * match by primary key are updated; new records are inserted. Local-only
+     * records that do not exist in Firestore are **not** deleted, avoiding
+     * cascading FK issues with related entities.
+     *
+     * **Order:** Projects are upserted first because expenses carry a foreign
+     * key to `projects.projectId`.
+     *
+     * @param context The [Context] used to check network availability.
+     * @return [Result.success] with a summary message, or [Result.failure]
+     *         with a descriptive exception on network or read errors.
+     */
+    suspend fun restoreFromCloud(context: Context): Result<String> = withContext(ioDispatcher) {
+        if (!NetworkUtils.isNetworkAvailable(context)) {
+            return@withContext Result.failure(Exception("No internet connection"))
+        }
+
+        try {
+            // 1. Fetch ALL docs from Firestore (including tombstones with isDeleted=true)
+            val (remoteProjects, remoteExpenses) = withTimeout(SYNC_TIMEOUT_MS) {
+                val projects = firestoreService.getProjects()
+                val expenses = firestoreService.getAllExpenses()
+                projects to expenses
+            }
+
+            // 2. Merge projects using Last-Write-Wins (LWW) on updatedAt
+            for (remote in remoteProjects) {
+                if (remote.isDeleted) {
+                    // Cloud has confirmed this deletion → hard-delete the local row
+                    dao.hardDeleteProject(remote.projectId)
+                } else {
+                    val local = dao.getProjectByIdStatic(remote.projectId)
+                    if (local == null || remote.updatedAt > local.updatedAt) {
+                        // Remote is newer (or doesn't exist locally) → accept cloud version
+                        dao.upsertProjects(listOf(remote))
+                    }
+                    // else: local is newer → keep it; syncAllToCloud() will push it up next time
+                }
+            }
+
+            // 3. Merge expenses using Last-Write-Wins (LWW) on updatedAt
+            for (remote in remoteExpenses) {
+                if (remote.isDeleted) {
+                    dao.hardDeleteExpense(remote.expenseId)
+                } else {
+                    val local = dao.getExpenseByIdStatic(remote.expenseId)
+                    if (local == null || remote.updatedAt > local.updatedAt) {
+                        dao.upsertExpenses(listOf(remote))
+                    }
+                }
+            }
+
+            val liveProjects = remoteProjects.count { !it.isDeleted }
+            val liveExpenses = remoteExpenses.count { !it.isDeleted }
+            Result.success("Restored $liveProjects projects and $liveExpenses expenses.")
+
+        } catch (e: Exception) {
+            Log.e("SYNC_DEBUG", "restoreFromCloud error: ", e)
+            if (e is CancellationException) {
+                return@withContext Result.failure(Exception("Đã hết thời gian chờ (Timeout)"))
+            }
             Result.failure(e)
         }
     }
@@ -85,34 +156,40 @@ class ProjectRepository(
 
     /**
      * Updates an existing project in the local database and triggers a cloud sync.
+     * Stamps [updatedAt] with the current timestamp so the LWW conflict resolver
+     * in [restoreFromCloud] always treats this as the authoritative version.
      *
      * @return [Result.success] if both the local update and cloud sync succeed,
      *         or [Result.failure] if the sync fails (local update is still persisted).
      */
     suspend fun updateProject(project: ProjectEntity, context: Context): Result<Unit> {
-        dao.updateProject(project)
+        val stamped = project.copy(updatedAt = System.currentTimeMillis())
+        dao.updateProject(stamped)
         return syncAllToCloud(context)
     }
 
     /**
-     * Deletes a project from the local database and triggers a cloud sync.
+     * Soft-deletes a project locally (sets isDeleted=true, stamps updatedAt),
+     * then syncs the tombstone to Firestore. On the next [restoreFromCloud],
+     * any device seeing the tombstone will also remove it.
      *
-     * @return [Result.success] if both the local delete and cloud sync succeed,
-     *         or [Result.failure] if the sync fails (local delete is still persisted).
+     * @return [Result.success] if both the soft-delete and cloud sync succeed,
+     *         or [Result.failure] if the sync fails (soft-delete is still persisted).
      */
     suspend fun deleteProject(project: ProjectEntity, context: Context): Result<Unit> {
-        dao.deleteProject(project)
+        dao.softDeleteProject(project.projectId)  // was: dao.deleteProject(project)
         return syncAllToCloud(context)
     }
 
     /**
-     * Deletes a project by its ID from the local database and triggers a cloud sync.
+     * Soft-deletes a project by its ID locally (sets isDeleted=true, stamps updatedAt),
+     * then syncs the tombstone to Firestore.
      *
-     * @return [Result.success] if both the local delete and cloud sync succeed,
-     *         or [Result.failure] if the sync fails (local delete is still persisted).
+     * @return [Result.success] if both the soft-delete and cloud sync succeed,
+     *         or [Result.failure] if the sync fails (soft-delete is still persisted).
      */
     suspend fun deleteProjectById(projectId: String, context: Context): Result<Unit> {
-        dao.deleteProjectById(projectId)
+        dao.softDeleteProject(projectId)           // was: dao.deleteProjectById(projectId)
         return syncAllToCloud(context)
     }
 

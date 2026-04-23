@@ -33,7 +33,9 @@ data class ExpenseEntity(
     val paymentMethod: String, // "Cash", "Credit Card", "Bank Transfer", "Cheque"
     val claimant: String, // Person claiming the expense
     val status: String = "Pending", // "Paid", "Pending", "Reimbursed"
-    val description: String = "", // Optional
-    val location: String = "" // Optional
+    val description: String = "",    // Optional
+    val location: String = "",          // Optional
+    // ── Sync / Tombstone fields ──────────────────────────────────────────
+    val updatedAt: Long = System.currentTimeMillis(), // Epoch ms — Last-Write-Wins conflict resolution
+    val isDeleted: Boolean = false                    // true = soft-deleted tombstone; excluded from UI
 )
-

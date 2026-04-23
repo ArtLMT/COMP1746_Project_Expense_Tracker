@@ -81,7 +81,7 @@ fun ExpenseListScreen(
                 .padding(scaffoldPadding)
                 .background(MaterialTheme.colorScheme.background)
         ) {
-            // ---- Generic Header: title, search, filter chips ----
+            // Generic Header: title, search, filter chips
             HeaderSection(
                 title = if (projectId != null) "Project Expenses" else "All Expenses",
                 selectedTab = selectedTab,
@@ -99,7 +99,7 @@ fun ExpenseListScreen(
                 onBackClick = if (projectId != null) onNavigateBack else null
             )
 
-            // ---- Expense Type Filters ----
+            // Expense Type Filters
             LazyRow(
                 modifier = Modifier.fillMaxWidth(),
                 contentPadding = PaddingValues(horizontal = 20.dp),
@@ -130,7 +130,7 @@ fun ExpenseListScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ---- Budget Comparison Card ----
+            // Budget Comparison Card
             BudgetComparisonCard(
                 totalExpenses = listState.totalAmount,
                 projectBudget = listState.projectBudget,
@@ -139,7 +139,7 @@ fun ExpenseListScreen(
 
             Spacer(modifier = Modifier.height(8.dp))
 
-            // ---- Expenses List ----
+            // Expenses List
             Box(
                 modifier = Modifier
                     .fillMaxSize()

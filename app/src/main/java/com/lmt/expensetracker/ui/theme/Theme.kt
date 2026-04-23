@@ -25,12 +25,12 @@ private val LightColorScheme = lightColorScheme(
     onPrimary = Color.White,
     onBackground = CustomColors.TextPrimaryLight,
     onSurface = CustomColors.TextPrimaryLight,
-    surfaceVariant = Color(0xFFE8F5E9) // Một màu xanh cực nhạt cho Light Mode surfaceVariant
+    surfaceVariant = Color(0xFFE8F5E9)
 )
 
 @Composable
 fun ExpenseTrackerTheme(
-    darkTheme: Boolean = true, // Giá trị này sẽ nhận từ ViewModel.isDarkTheme truyền vào
+    darkTheme: Boolean = true, // track if user click on dark theme, imported by ViewModel.isDarkTheme
     content: @Composable () -> Unit
 ) {
     val colorScheme = if (darkTheme) DarkColorScheme else LightColorScheme
