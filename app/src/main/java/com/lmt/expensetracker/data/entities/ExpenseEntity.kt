@@ -35,7 +35,7 @@ data class ExpenseEntity(
     val status: String = "Pending", // "Paid", "Pending", "Reimbursed"
     val description: String = "",    // Optional
     val location: String = "",          // Optional
-    // ── Sync / Tombstone fields ──────────────────────────────────────────
-    val updatedAt: Long = System.currentTimeMillis(), // Epoch ms — Last-Write-Wins conflict resolution
-    val isDeleted: Boolean = false                    // true = soft-deleted tombstone; excluded from UI
+
+    val updatedAt: Long = System.currentTimeMillis(), // used for Last-Write-Wins conflict resolution
+    val isDeleted: Boolean = false                    // true = soft-deleted and excluded from UI
 )

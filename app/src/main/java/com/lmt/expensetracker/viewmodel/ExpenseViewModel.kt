@@ -6,7 +6,6 @@ import androidx.lifecycle.viewModelScope
 import com.lmt.expensetracker.data.entities.ExpenseEntity
 import com.lmt.expensetracker.data.repository.ExpenseRepository
 import com.lmt.expensetracker.data.repository.ProjectRepository
-import com.lmt.expensetracker.utils.DateUtils
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow

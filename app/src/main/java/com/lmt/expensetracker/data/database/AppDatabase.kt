@@ -51,8 +51,7 @@ abstract class AppDatabase : RoomDatabase() {
                     AppDatabase::class.java,
                     "expense_tracker_db"
                 )
-                    .addMigrations(MIGRATION_1_2)      // ← run migration first
-                    .fallbackToDestructiveMigration()  // ← dev safety net; remove for release
+                    .addMigrations(MIGRATION_1_2)      // run migration first
                     .build()
                 INSTANCE = instance
                 instance
